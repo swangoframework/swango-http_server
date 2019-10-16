@@ -20,7 +20,8 @@
 		},
 		"classmap" : [
 			"src/HttpServer.php",
-			"src/ExceptionToResponse.php"
+			"src/ExceptionToResponse.php",
+			"src/session.php"
 		]
 	}
 }
