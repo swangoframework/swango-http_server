@@ -1,0 +1,9 @@
+{
+	"require" : {
+		"swango/db" : "^1.0",
+		"swango/model" : "^1.0",
+		"swango/cache" : "^1.0",
+		"swango/environment": "^1.0",
+		"swango/stdlib": "^1.2"
+	}
+}
