@@ -1,5 +1,5 @@
 <?php
-namespace Swango\HttpServer;
+namespace Swango\HttpServer\Controller;
 class StaticResourceController extends \Swango\HttpServer\Controller {
     private static $file_exists_cache = [];
     protected static function file_exists(string $file): bool {

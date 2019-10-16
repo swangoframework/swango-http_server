@@ -15,10 +15,12 @@
 	},
 	"autoload" : {
 		"psr-4" : {
-			"Swango\\HttpServer\\" : "src"
+			"Swango\\HttpServer\\" : "src",
+			"ExceptionToResponse\\" : "src/ExceptionToResponse"
 		},
 		"classmap" : [
-			"src/HttpServer.php"
+			"src/HttpServer.php",
+			"src/ExceptionToResponse.php"
 		]
 	}
 }

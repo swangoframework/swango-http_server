@@ -162,7 +162,7 @@ class HttpServer {
             return "Not running\n";
         return "Master pid: $pid \n";
     }
-    public function talk(array $cmds, string $host = '127.0.0.1', int $port = 8588): void {
+    public function talk(array $cmds, string $host = '127.0.0.1', ?int $port = null): void {
         echo $this->getStatus();
         $client = new \Swoole\Client(SWOOLE_SOCK_TCP);
         $client->set(
@@ -171,7 +171,7 @@ class HttpServer {
                 'package_eof' => "\r\n",
                 'package_max_length' => 1024 * 1024 * 2
             ]);
-        if (! $client->connect($host, $port, - 1))
+        if (! $client->connect($host, $port ?? \Swango\Environment::getServiceConfig()->terminal_server_port, - 1))
             exit("connect failed. Error: {$client->errCode}\n");
         $client->send(\Swoole\Serialize::pack($cmds, SWOOLE_FAST_PACK) . "\r\n");
         for($response = $client->recv(); $response !== '' && $response !== false; $response = $client->recv())

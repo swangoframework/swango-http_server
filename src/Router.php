@@ -66,8 +66,8 @@ final class Router {
             if ($this->method !== 'GET' && $this->method !== 'HEAD')
                 throw new \ExceptionToResponse\BadRequestException();
             else
-                return \StaticResourceController::getInstance()->setSwooleHttpObject($this->request, $response)->setPar()->setMethod(
-                    $this->method)->setAction($this->action);
+                return Controller\StaticResourceController::getInstance()->setSwooleHttpObject($this->request,
+                    $response)->setPar()->setMethod($this->method)->setAction($this->action);
 
         $par = [];
         $action = $this->action;

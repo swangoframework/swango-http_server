@@ -28,7 +28,7 @@ class Handler {
              * @var \Controller $controller
              */
             $controller = $router->getController($response);
-            if ($controller instanceof \StaticResourceController || $controller instanceof \UltimateProxyController)
+            if ($controller instanceof Controller\StaticResourceController)
                 $controller->begin()->endRequest();
             else {
                 if ($router->isWebhook())
@@ -280,7 +280,5 @@ class Handler {
     }
     public static function end(\Swoole\Http\Request $request) {
         \session::end();
-        // \FinishFunc::run($request);
-        // \Factory::unsetFactoriesInstance();
     }
 }
