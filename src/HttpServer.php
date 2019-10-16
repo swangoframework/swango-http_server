@@ -25,7 +25,7 @@ class HttpServer {
         'task_ipc_mode' => 1, // 3为使用消息队列通信，争抢模式，无法使用定向投递
         'task_max_request' => 5000, // task进程处理200个请求后自动退出，防止内存溢出
         'backlog' => 128, // 最多同时有多少个等待accept的连接
-        'pid_file' => \Swango\Environment::getDir()->base . 'wmp.pid',
+        'pid_file' => \Swango\Environment::getDir()->base . \Swango\Environment::getName() . '.pid',
         'max_request' => 0, // worker永不退出
         'reload_async' => true,
         'http_parse_post' => false, // 不自动解析POST包体
@@ -124,7 +124,7 @@ class HttpServer {
         $this->server->start();
     }
     public function getPid(): ?int {
-        $pidfile = \Swango\Environment::getDir()->base . 'wmp.pid';
+        $pidfile = \Swango\Environment::getDir()->base . \Swango\Environment::getName() . '.pid';
         if (file_exists($pidfile)) {
             $pid = file_get_contents($pidfile);
             return $pid && @posix_kill($pid, 0) ? $pid : null;
@@ -179,10 +179,10 @@ class HttpServer {
         $client->close();
     }
     public function onStart(\Swoole\Server $server): void {
-        @cli_set_process_title('Wmp master');
+        @cli_set_process_title(\Swango\Environment::getName() . ' master');
     }
     public function onManagerStart(\Swoole\Server $server): void {
-        @cli_set_process_title('Wmp manager');
+        @cli_set_process_title(\Swango\Environment::getName() . ' manager');
     }
     private function onTaskStart(\Swoole\Server $serv, $worker_id): void {
         define('SWANGO_WORKING_IN_TASK', true);
@@ -211,11 +211,11 @@ class HttpServer {
         self::$worker = $serv;
         self::$worker_id = $worker_id;
         if ($worker_id < $this->swoole_server_config['worker_num']) {
-            @cli_set_process_title('Wmp worker ' . $worker_id);
+            @cli_set_process_title(\Swango\Environment::getName() . ' worker ' . $worker_id);
             $this->onWorkerStart($serv, $worker_id);
         } else {
             $this->onTaskStart($serv, $worker_id);
-            @cli_set_process_title('Wmp task ' . $worker_id);
+            @cli_set_process_title(\Swango\Environment::getName() . ' task ' . $worker_id);
         }
     }
     private function recycle(): void {
@@ -241,14 +241,14 @@ class HttpServer {
     public function onWorkerStop(\Swoole\Server $serv, $worker_id): void {
         if (! $this->stopping_process_title_set) {
             $this->stopping_process_title_set = true;
-            @cli_set_process_title('Wmp worker ' . $worker_id . ' [stopping]');
+            @cli_set_process_title(\Swango\Environment::getName() . ' worker ' . $worker_id . ' [stopping]');
         }
         $this->recycle();
     }
     public function onWorkerExit(\Swoole\Server $serv, $worker_id): void {
         if (! $this->stopping_process_title_set) {
             $this->stopping_process_title_set = true;
-            @cli_set_process_title('Wmp worker ' . $worker_id . ' [stopping]');
+            @cli_set_process_title(\Swango\Environment::getName() . ' worker ' . $worker_id . ' [stopping]');
         }
         $this->recycle();
     }
