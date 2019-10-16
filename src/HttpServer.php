@@ -1,5 +1,7 @@
 <?php
 namespace Swango;
+use Swango\Environment;
+
 class HttpServer {
     protected static $worker, $worker_id, $terminal_server, $http_request_counter, $max_coroutine, $is_stopping = false;
     public static function getWorkerId(): ?int {
@@ -25,7 +27,6 @@ class HttpServer {
         'task_ipc_mode' => 1, // 3为使用消息队列通信，争抢模式，无法使用定向投递
         'task_max_request' => 5000, // task进程处理200个请求后自动退出，防止内存溢出
         'backlog' => 128, // 最多同时有多少个等待accept的连接
-        'pid_file' => \Swango\Environment::getDir()->base . \Swango\Environment::getName() . '.pid',
         'max_request' => 0, // worker永不退出
         'reload_async' => true,
         'http_parse_post' => false, // 不自动解析POST包体
@@ -75,16 +76,17 @@ class HttpServer {
                 'onRequest'
             ]
         ];
+        $this->swoole_server_config['pid_file'] = Environment::getDir()->base . Environment::getName() . '.pid';
     }
     protected function loadConfig(): void {
-        $daemon_config = \Swango\Environment::getServiceConfig();
+        $daemon_config = Environment::getServiceConfig();
         $this->swoole_server_config['reactor_num'] = $daemon_config->reactor_num;
         $this->swoole_server_config['worker_num'] = $daemon_config->worker_num;
         $this->swoole_server_config['task_worker_num'] = $daemon_config->task_worker_num;
         $this->swoole_server_config['task_max_request'] = $daemon_config->task_max_request;
     }
     protected function createSwooleServer(): void {
-        $daemon_config = \Swango\Environment::getServiceConfig();
+        $daemon_config = Environment::getServiceConfig();
         $this->server = new \Swoole\Http\Server($daemon_config->http_server_host, $daemon_config->http_server_port);
         self::$terminal_server = new HttpServer\TerminalServer(
             $this->server->addListener($daemon_config->terminal_server_host, $daemon_config->terminal_server_port,
@@ -95,7 +97,7 @@ class HttpServer {
             $this->server->on($event, $func);
     }
     protected function initBeforeStart(): void {
-        mt_srand((int)(microtime(true) * 10000) * 100 + ip2long(\Swango\Environment::getServiceConfig()->local_ip));
+        mt_srand((int)(microtime(true) * 10000) * 100 + ip2long(Environment::getServiceConfig()->local_ip));
         define('SERVER_TEMP_ID', mt_rand(0, 4294967295));
 
         $this->swoole_server_config['dispatch_mode'] = 3;
@@ -112,7 +114,7 @@ class HttpServer {
         if ($this->getPid() !== null)
             exit("Already running\n");
 
-        $this->swoole_server_config['log_file'] = \Swango\Environment::getDir()->log . 'swoole.log';
+        $this->swoole_server_config['log_file'] = Environment::getDir()->log . 'swoole.log';
         $this->daemonize = $daemonize;
         $this->loadConfig();
         $this->createSwooleServer();
@@ -124,7 +126,7 @@ class HttpServer {
         $this->server->start();
     }
     public function getPid(): ?int {
-        $pidfile = \Swango\Environment::getDir()->base . \Swango\Environment::getName() . '.pid';
+        $pidfile = Environment::getDir()->base . Environment::getName() . '.pid';
         if (file_exists($pidfile)) {
             $pid = file_get_contents($pidfile);
             return $pid && @posix_kill($pid, 0) ? $pid : null;
@@ -171,7 +173,7 @@ class HttpServer {
                 'package_eof' => "\r\n",
                 'package_max_length' => 1024 * 1024 * 2
             ]);
-        if (! $client->connect($host, $port ?? \Swango\Environment::getServiceConfig()->terminal_server_port, - 1))
+        if (! $client->connect($host, $port ?? Environment::getServiceConfig()->terminal_server_port, - 1))
             exit("connect failed. Error: {$client->errCode}\n");
         $client->send(\Swoole\Serialize::pack($cmds, SWOOLE_FAST_PACK) . "\r\n");
         for($response = $client->recv(); $response !== '' && $response !== false; $response = $client->recv())
@@ -179,18 +181,18 @@ class HttpServer {
         $client->close();
     }
     public function onStart(\Swoole\Server $server): void {
-        @cli_set_process_title(\Swango\Environment::getName() . ' master');
+        @cli_set_process_title(Environment::getName() . ' master');
     }
     public function onManagerStart(\Swoole\Server $server): void {
-        @cli_set_process_title(\Swango\Environment::getName() . ' manager');
+        @cli_set_process_title(Environment::getName() . ' manager');
     }
     private function onTaskStart(\Swoole\Server $serv, $worker_id): void {
         define('SWANGO_WORKING_IN_TASK', true);
-        \Swango\Environment::getWorkingMode()->reset();
+        Environment::getWorkingMode()->reset();
     }
     private function onWorkerStart(\Swoole\Server $serv, $worker_id): void {
         define('SWANGO_WORKING_IN_WORKER', true);
-        \Swango\Environment::getWorkingMode()->reset();
+        Environment::getWorkingMode()->reset();
         $serv->worker_http_request_counter = 0;
         \Swango\Cache\RedisPool::initInWorker();
         if ($worker_id === 0) {
@@ -200,7 +202,7 @@ class HttpServer {
                 function (int $timer_id) use ($serv) {
                     \Swango\Db\Pool\master::addWorkerCountToAtomic(true);
                     \Swango\Db\Pool\slave::addWorkerCountToAtomic(true);
-                    for($dst_worker_id = 1; $dst_worker_id < \Swango\Environment::getServiceConfig()->worker_num; ++ $dst_worker_id)
+                    for($dst_worker_id = 1; $dst_worker_id < Environment::getServiceConfig()->worker_num; ++ $dst_worker_id)
                         @$serv->sendMessage(pack('n', 3), $dst_worker_id);
                 });
         }
@@ -211,11 +213,11 @@ class HttpServer {
         self::$worker = $serv;
         self::$worker_id = $worker_id;
         if ($worker_id < $this->swoole_server_config['worker_num']) {
-            @cli_set_process_title(\Swango\Environment::getName() . ' worker ' . $worker_id);
+            @cli_set_process_title(Environment::getName() . ' worker ' . $worker_id);
             $this->onWorkerStart($serv, $worker_id);
         } else {
             $this->onTaskStart($serv, $worker_id);
-            @cli_set_process_title(\Swango\Environment::getName() . ' task ' . $worker_id);
+            @cli_set_process_title(Environment::getName() . ' task ' . $worker_id);
         }
     }
     private function recycle(): void {
@@ -241,14 +243,14 @@ class HttpServer {
     public function onWorkerStop(\Swoole\Server $serv, $worker_id): void {
         if (! $this->stopping_process_title_set) {
             $this->stopping_process_title_set = true;
-            @cli_set_process_title(\Swango\Environment::getName() . ' worker ' . $worker_id . ' [stopping]');
+            @cli_set_process_title(Environment::getName() . ' worker ' . $worker_id . ' [stopping]');
         }
         $this->recycle();
     }
     public function onWorkerExit(\Swoole\Server $serv, $worker_id): void {
         if (! $this->stopping_process_title_set) {
             $this->stopping_process_title_set = true;
-            @cli_set_process_title(\Swango\Environment::getName() . ' worker ' . $worker_id . ' [stopping]');
+            @cli_set_process_title(Environment::getName() . ' worker ' . $worker_id . ' [stopping]');
         }
         $this->recycle();
     }
@@ -337,7 +339,7 @@ class HttpServer {
         if ($cmd === 1 || $cmd === 2) {
             static $certs = [];
             if (! array_key_exists($index, $certs)) {
-                $certname = \Swango\Environment::getDir()->data . 'cert/rsa_private_key_' . $index . '.pem';
+                $certname = Environment::getDir()->data . 'cert/rsa_private_key_' . $index . '.pem';
                 if (! file_exists($certname))
                     return - 3;
                 $key = include $certname;
