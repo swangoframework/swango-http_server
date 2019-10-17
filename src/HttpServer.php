@@ -166,19 +166,22 @@ class HttpServer {
     }
     public function talk(array $cmds, string $host = '127.0.0.1', ?int $port = null): void {
         echo $this->getStatus();
-        $client = new \Swoole\Client(SWOOLE_SOCK_TCP);
-        $client->set(
-            [
-                'open_eof_check' => true,
-                'package_eof' => "\r\n",
-                'package_max_length' => 1024 * 1024 * 2
-            ]);
-        if (! $client->connect($host, $port ?? Environment::getServiceConfig()->terminal_server_port, - 1))
-            exit("connect failed. Error: {$client->errCode}\n");
-        $client->send(\Swoole\Serialize::pack($cmds, SWOOLE_FAST_PACK) . "\r\n");
-        for($response = $client->recv(); $response !== '' && $response !== false; $response = $client->recv())
-            echo $response;
-        $client->close();
+        go(
+            function () use ($cmds, $host, $port) {
+                $client = new \Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+                $client->set(
+                    [
+                        'open_eof_check' => true,
+                        'package_eof' => "\r\n",
+                        'package_max_length' => 1024 * 1024 * 2
+                    ]);
+                if (! $client->connect($host, $port ?? Environment::getServiceConfig()->terminal_server_port, - 1))
+                    exit("connect failed. Error: {$client->errCode}\n");
+                $client->send(\Swoole\Serialize::pack($cmds, SWOOLE_FAST_PACK) . "\r\n");
+                for($response = $client->recv(); $response; $response = $client->recv())
+                    echo $response;
+                $client->close();
+            });
     }
     public function onStart(\Swoole\Server $server): void {
         @cli_set_process_title(Environment::getName() . ' master');
