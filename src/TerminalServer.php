@@ -4,18 +4,18 @@ class TerminalServer {
     private $status, $gc_collect_cycles_result, $clear_cache_result;
     private $fd_table, $switch_log_request_1, $switch_log_request_2, $notify_log_queue_atomic;
     public function __construct(\Swoole\Server\Port $port) {
-        $port->on('connect', [
-            $this,
-            'onConnect'
-        ]);
+        // $port->on('connect', [
+        // $this,
+        // 'onConnect'
+        // ]);
         $port->on('receive', [
             $this,
             'onReceive'
         ]);
-        $port->on('close', [
-            $this,
-            'onClose'
-        ]);
+        // $port->on('close', [
+        // $this,
+        // 'onClose'
+        // ]);
         $port->set([
             'open_eof_split' => true,
             'package_eof' => "\r\n"
