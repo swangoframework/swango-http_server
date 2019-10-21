@@ -86,6 +86,11 @@ final class Router {
         $action = $this->action;
         $v = $this->version ?? '';
         do {
+            if (in_array('', $action, true)) {
+                // Empty router not suppoted. Use as param
+                $par[] = array_pop($action);
+                continue;
+            }
             $tmp = $action;
             $tmp[] = $this->method . $v;
 
