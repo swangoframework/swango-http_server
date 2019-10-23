@@ -48,6 +48,11 @@ abstract class Controller {
         $this->swoole_http_response = $response;
         return $this;
     }
+    public function detachSwooleObject(): self {
+        $this->swoole_http_request = null;
+        $this->swoole_http_response = null;
+        return $this;
+    }
     public function getSwooleHttpRequest(): \Swoole\Http\Request {
         return $this->swoole_http_request;
     }

@@ -298,7 +298,7 @@ class HttpServer {
         if (self::$terminal_server->getRequestLogSwitchStatus(2))
             self::$terminal_server->send($request_string . ' ==> ' . $response_string, 2);
 
-        HttpServer\Handler::end($request);
+        HttpServer\Handler::end();
     }
     public function onPipeMessage(\Swoole\Server $server, int $src_worker_id, $message) {
         $cmd = unpack('n', substr($message, 0, 2))[1];

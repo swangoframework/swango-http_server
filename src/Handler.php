@@ -278,7 +278,13 @@ class Handler {
             $request->post = new \stdClass();
         return false;
     }
-    public static function end(\Swoole\Http\Request $request) {
+    public static function end() {
         \session::end();
+        try {
+            Router::getInstance()->detachSwooleRequest();
+        } catch(\Throwable $e) {}
+        $controller = Controller::getInstance(false);
+        if (isset($controller))
+            $controller->detachSwooleObject();
     }
 }

@@ -44,6 +44,10 @@ final class Router {
     public function getFd(): int {
         return $this->request->fd;
     }
+    public function detachSwooleRequest(): self {
+        $this->request = null;
+        return $this;
+    }
     public function getControllerName(): string {
         return $this->controller_name;
     }
