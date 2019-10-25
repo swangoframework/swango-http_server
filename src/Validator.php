@@ -61,7 +61,10 @@ abstract class Validator {
         $this->check($key, $value);
         if (method_exists($this, 'validate_function'))
             $this->validate_function($value);
-        foreach ($this->validate_function as $func)
+        while ( ! $this->validate_function->isEmpty() ) {
+            $func = $this->validate_function->dequeue();
             $func($value);
+            unset($func);
+        }
     }
 }

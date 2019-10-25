@@ -174,6 +174,7 @@ abstract class Controller {
         $this->par_validate->validate('URL', $this->par);
         $this->get_validate->validate('QUERY', $this->swoole_http_request->get);
         $this->post_validate->validate('POST', $this->swoole_http_request->post);
+        $this->par_validate = $this->get_validate = $this->post_validate = null;
         $this->get = $this->swoole_http_request->get;
         $this->post = $this->swoole_http_request->post;
         return $this;
