@@ -110,8 +110,8 @@ class Handler {
         }
 
         \FileLog::logThrowable($e, \Swango\Environment::getDir()->log . 'error/',
-            sprintf('[%s] %s : %s | %s | %s | %s | ', date('Y-m-d H:i:s', $request->server['request_time']),
-                $request->header['x-forwarded-for'] ?? $request->server['remote_addr'], $e->getMessage(), $cnmsg,
+            sprintf('%s : %s | %s | %s | %s | ', $request->header['x-forwarded-for'] ?? $request->server['remote_addr'],
+                $e->getMessage(), $cnmsg,
                 ($request->header['host'] ?? '') . $request->server['request_uri'] .
                      (isset($request->server['query_string']) ? '?' . $request->server['query_string'] : ''),
                     isset($request->post) ? json_encode($request->post) : ''));
