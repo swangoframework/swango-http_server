@@ -2,7 +2,7 @@
 namespace Swango\HttpServer;
 class Router {
     private static $cache = [];
-    public static function getInstance(?\Swoole\Http\Request $request = null): self {
+    public static function getInstance(?\Swoole\Http\Request $request = null): Router {
         $ob = \SysContext::get('router');
         if (isset($ob))
             return $ob;
