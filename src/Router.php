@@ -24,7 +24,7 @@ class Router {
     public static function exists(): bool {
         return \SysContext::has('router');
     }
-    private $action, $uri, $controller, $pars, $method, $controller_name, $version, $request, $host;
+    protected $action, $uri, $controller, $pars, $method, $controller_name, $version, $request, $host;
     protected function __construct(string $uri, string $method, ?int $version) {
         $action = explode('/', strtolower($uri));
         array_shift($action);
