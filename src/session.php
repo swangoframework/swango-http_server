@@ -7,6 +7,9 @@ class session {
     public static function start(\Swoole\Http\Request $request, \Swoole\Http\Response $response, ?string $sid = null,
         ?string $agent = null): void {
         switch ($agent) {
+            case 'app' :
+                $agent = self::Agent_app;
+                break;
             case 'wmp' :
                 $agent = self::Agent_wmp;
                 break;
@@ -123,6 +126,8 @@ class session {
             $agent = $ob->agent;
         }
         switch ($agent) {
+            case self::Agent_app :
+                return 'app';
             case self::Agent_wmp :
                 return 'wmp';
             case self::Agent_qmp :
