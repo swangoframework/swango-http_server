@@ -42,7 +42,7 @@ class TerminalServer {
                 'switch' => 0
             ]);
         $data = substr($data, 0, - 2);
-        $cmds = \Swoole\Serialize::unpack($data);
+        $cmds = explode("\x1E", $data);
         switch ($cmds[0]) {
             case 'show' :
                 if ($cmds[1] === 'request') {

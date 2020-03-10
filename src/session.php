@@ -246,7 +246,13 @@ class session {
         $value = $ob->hGet($ob->sid, $key);
 
         if (isset($value))
-            $value = \Swoole\serialize::unpack($value);
+            try {
+                $value = \Json::decodeAsObject($value);
+            } catch(\JsonDecodeFailException $e) {
+                // 旧版本兼容，并试图以新格式存储
+                $value = \Swoole\serialize::unpack($value);
+                $ob->changed[$key] = true;
+            }
         $ob->data->{$key} = $value;
         return $value;
     }
@@ -260,7 +266,13 @@ class session {
         $value = $ob->hGet($ob->sid, $key);
 
         if (isset($value))
-            $value = \Swoole\serialize::unpack($value);
+            try {
+                $value = \Json::decodeAsObject($value);
+            } catch(\JsonDecodeFailException $e) {
+                // 旧版本兼容，并试图以新格式存储
+                $value = \Swoole\serialize::unpack($value);
+                $ob->changed[$key] = true;
+            }
         $ob->data->{$key} = $value;
         return isset($value);
     }
@@ -355,7 +367,7 @@ class session {
         foreach ($this->changed as $key=>$tmp) {
             $value = $this->data->{$key};
             if (isset($value))
-                $set[$key] = \Swoole\serialize::pack($value);
+                $set[$key] = \Json::encode($value);
             else
                 $del[] = $key;
         }

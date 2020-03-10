@@ -177,7 +177,7 @@ class HttpServer {
                     ]);
                 if (! $client->connect($host, $port ?? Environment::getServiceConfig()->terminal_server_port, - 1))
                     exit("connect failed. Error: {$client->errCode}\n");
-                $client->send(\Swoole\Serialize::pack($cmds, SWOOLE_FAST_PACK) . "\r\n");
+                $client->send(implode("\x1E", $cmds) . "\r\n");
                 for($response = $client->recv(); $response; $response = $client->recv())
                     echo $response;
                 $client->close();
