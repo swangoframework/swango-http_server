@@ -1,6 +1,7 @@
 <?php
 namespace Swango\HttpServer;
 class TerminalServer {
+    public static $log_queue_redis_key = 'http_server_log_host_queue';
     private $status, $gc_collect_cycles_result, $clear_cache_result;
     private $fd_table, $switch_log_request_1, $switch_log_request_2, $notify_log_queue_atomic;
     public function __construct(\Swoole\Server\Port $port) {
@@ -321,7 +322,7 @@ class TerminalServer {
         if ($force || $this->notify_log_queue_atomic->get() === 0 && $this->notify_log_queue_atomic->add() === 1) {
             $redis = \Swango\Cache\RedisPool::pop();
             $redis->select(1);
-            $redis->lPush('http_server_log_host_queue', \Swango\Environment::getServiceConfig()->local_ip);
+            $redis->lPush(self::$log_queue_redis_key, \Swango\Environment::getServiceConfig()->local_ip);
             \Swango\Cache\RedisPool::push($redis);
         }
     }
