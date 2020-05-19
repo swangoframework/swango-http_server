@@ -288,13 +288,12 @@ class HttpServer {
                 $cnmsg
             ] = HttpServer\Handler::start($request, $response);
             $user_id = HttpServer\Authorization::getUidWithRole();
-
-            HttpServer\Handler::end($request);
         } catch(\Swoole\ExitException $e) {
             trigger_error("Unexpected exit:{$e->getCode()} {$e->getMessage()}");
         } catch(\Throwable $e) {
             trigger_error("Unexpected throwable:{$e->getCode()} {$e->getMessage()} {$e->getTraceAsString()}");
         }
+        HttpServer\Handler::end();
         -- self::$worker->worker_http_request_counter;
 
         $end_time = microtime(true);
@@ -305,8 +304,6 @@ class HttpServer {
 
         if (self::$terminal_server->getRequestLogSwitchStatus(2))
             self::$terminal_server->send($request_string . ' ==> ' . $response_string, 2);
-
-        HttpServer\Handler::end();
     }
     public function onPipeMessage(\Swoole\Server $server, int $src_worker_id, $message) {
         $cmd = unpack('n', substr($message, 0, 2))[1];
