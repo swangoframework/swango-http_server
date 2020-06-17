@@ -76,13 +76,18 @@ class Handler {
             $cnmsg = '此服务维护中，暂时不可用';
             $data = null;
         } catch(\Exception $e) {
-            $code = 500;
+            $code = method_exists($e, 'getSwangoCode') ? $e->getSwangoCode() : 500;
             $enmsg = 'Unexpected system error';
-            $cnmsg = '服务器开小差了，请稍后重试';
             $data = null;
             // 死锁
-            if ($e instanceof \Swango\Db\Exception\QueryErrorException && $e->errno === 1213)
+            if ($e instanceof \Swango\Db\Exception\QueryErrorException && $e->errno === 1213) {
                 $cnmsg = '当前使用该服务的人数较多，请稍后重试';
+            } elseif (method_exists($e, 'getSwangoCnMsg')) {
+                $enmsg = $e->getMessage();
+                $cnmsg = $e->getSwangoCnMsg();
+            } else {
+                $cnmsg = '服务器开小差了，请稍后重试';
+            }
         } catch(\Error $e) {
             $code = 500;
             $enmsg = 'System fatal error';
