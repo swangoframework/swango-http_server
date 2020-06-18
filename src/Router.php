@@ -1,6 +1,7 @@
 <?php
 namespace Swango\HttpServer;
 class Router {
+    public static $no_static_path = null;
     private static $cache = [];
     public static function getInstance(?\Swoole\Http\Request $request = null): Router {
         $ob = \SysContext::get('router');
@@ -65,13 +66,15 @@ class Router {
         return "{$method}{$uri}-{$version}";
     }
     public function getController(\Swoole\Http\Response $response): Controller {
-        $point_pos = strpos($this->uri, '.');
-        if ($point_pos !== false)
-            if ($this->method !== 'GET' && $this->method !== 'HEAD')
-                throw new \ExceptionToResponse\BadRequestException();
-            else
-                return Controller\StaticResourceController::getInstance()->setSwooleHttpObject($this->request,
-                    $response)->setPar()->setMethod($this->method)->setAction($this->action);
+        if (self::$no_static_path === null || strpos($this->uri, self::$no_static_path) !== 0) {
+            $point_pos = strpos($this->uri, '.');
+            if ($point_pos !== false)
+                if ($this->method !== 'GET' && $this->method !== 'HEAD')
+                    throw new \ExceptionToResponse\BadRequestException();
+                else
+                    return Controller\StaticResourceController::getInstance()->setSwooleHttpObject($this->request,
+                        $response)->setPar()->setMethod($this->method)->setAction($this->action);
+        }
 
         $par = [];
         $action = $this->action;
