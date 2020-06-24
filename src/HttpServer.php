@@ -264,7 +264,7 @@ class HttpServer {
         $request_time_float = $request->server['request_time_float'];
         $request_time = (int)$request_time_float;
         $client_ip = $request->header['x-forwarded-for'] ?? $request->server['remote_addr'];
-        $client_ip_int = ip2long($client_ip);
+        $client_ip_int = ip2long(current(explode(', ', $client_ip)));
         $local_ip_right = ip2long(Environment::getServiceConfig()->local_ip) % 0x10000;
         $request_id = sprintf('%08x-%04x-4%03x-%x%03x-%07x%05x', $client_ip_int, $local_ip_right, mt_rand(0, 0xFFF),
             mt_rand(8, 0xB), mt_rand(0, 0xFFF), ((int)$request_time) >> 4, $count % 0x100000);

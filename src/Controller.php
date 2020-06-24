@@ -69,8 +69,8 @@ abstract class Controller {
         return \Gateway::rollbackTransaction();
     }
     public function getClientIp(): string {
-        if (array_key_exists('x-forwarded-for', $this->swoole_http_request->header))
-            return $this->swoole_http_request->header['x-forwarded-for'];
+        if (isset($this->swoole_http_request->header['x-forwarded-for']))
+            return current(explode(', ', $this->swoole_http_request->header['x-forwarded-for']));
         return $this->swoole_http_request->server['remote_addr'];
     }
     /**
