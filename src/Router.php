@@ -1,5 +1,7 @@
 <?php
 namespace Swango\HttpServer;
+use Swango\Environment;
+
 class Router {
     public static $no_static_path = null;
     private static $cache = [];
@@ -102,7 +104,16 @@ class Router {
             $tmp[] = $this->method . $v;
 
             $classname = '\\Controller\\' . implode('\\', $tmp);
-            if (! class_exists($classname, true)) {
+            $class_exists = class_exists($classname, false);
+            if (! $class_exists) {
+                $file_name = Environment::getDir()->controller . implode('/', $tmp) . '.php';
+                if (file_exists($file_name)) {
+                    require_once $file_name;
+                    $class_exists = class_exists($classname, false);
+                }
+            }
+
+            if (! $class_exists) {
                 $par[] = array_pop($action);
                 continue;
             } elseif ((! empty($par) && ! $classname::WITH_PAR)) {
