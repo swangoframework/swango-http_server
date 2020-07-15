@@ -97,6 +97,21 @@ class TerminalServer {
                 $server->send($fd, "Tcp accept count:   {$stats['accept_count']}\r\n");
                 $server->send($fd, "Tcp close count:    {$stats['close_count']}\r\n");
                 $server->send($fd, 'Http resquest count:' . \Swango\HttpServer::getTotalHttpRequest() . "\r\n");
+                $server->send($fd, "[Model cache(Swoole\\Table) status]\r\n");
+
+                $tables = \Swango\Model\LocalCache::getAllInstances();
+                if (empty($tables)) {
+                    $server->send($fd, "    *No model cache created\r\n");
+                } else {
+                    $memorySizeAll = 0;
+                    foreach ($tables as $key=>$table) {
+                        $memorySize = $table->memorySize;
+                        $memorySizeAll += $memorySize;
+                        $server->send($fd, sprintf("%16s:%.2f\n", $key, $memorySize / 1024));
+                    }
+                    $server->send($fd, sprintf("Total:              %.2f\n", $key, $memorySizeAll / 1024));
+                }
+
                 $server->send($fd, "[Each worker status (status worker:{$id})]\r\n");
                 for($dst_worker_id = 0; $dst_worker_id < \Swango\Environment::getServiceConfig()->worker_num; ++ $dst_worker_id)
                     @$server->sendMessage(pack('nN', 2, $fd), $dst_worker_id);
