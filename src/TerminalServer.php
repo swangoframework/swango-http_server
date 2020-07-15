@@ -97,7 +97,7 @@ class TerminalServer {
                 $server->send($fd, "Tcp accept count:   {$stats['accept_count']}\r\n");
                 $server->send($fd, "Tcp close count:    {$stats['close_count']}\r\n");
                 $server->send($fd, 'Http resquest count:' . \Swango\HttpServer::getTotalHttpRequest() . "\r\n");
-                $server->send($fd, "[Model cache(Swoole\\Table) status]\r\n");
+                $server->send($fd, "[Model cache (Swoole\\Table) memory size(kb)]\r\n");
 
                 $tables = \Swango\Model\LocalCache::getAllInstances();
                 if (empty($tables)) {
