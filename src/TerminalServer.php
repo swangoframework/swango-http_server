@@ -99,15 +99,10 @@ class TerminalServer {
                 $server->send($fd, 'Http resquest count:' . \Swango\HttpServer::getTotalHttpRequest() . "\r\n");
                 $server->send($fd, "[Model cache (Swoole\\Table) memory size(kb)]\r\n");
 
-                $tables = \Swango\Model\LocalCache::getAllInstances();
-                if (empty($tables)) {
+                $data = \Swango\Model\LocalCache::getAllInstanceSizes();
+                if (empty($data)) {
                     $server->send($fd, "*No model cache created\r\n");
                 } else {
-                    $data = [];
-                    foreach ($tables as $key=>$table)
-                        $data[$key] = $table->memorySize;
-
-                    unset($tables);
                     foreach ($data as $key=>$memorySize) {
                         $s = $key . ':';
                         $l = strlen($key);
