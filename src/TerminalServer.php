@@ -101,15 +101,21 @@ class TerminalServer {
 
                 $tables = \Swango\Model\LocalCache::getAllInstances();
                 if (empty($tables)) {
-                    $server->send($fd, "    *No model cache created\r\n");
+                    $server->send($fd, "*No model cache created\r\n");
                 } else {
-                    $memorySizeAll = 0;
-                    foreach ($tables as $key=>$table) {
-                        $memorySize = $table->memorySize;
-                        $memorySizeAll += $memorySize;
-                        $server->send($fd, sprintf("%16s:%.2f\n", $key, $memorySize / 1024));
+                    $data = [];
+                    foreach ($tables as $key=>$table)
+                        $data[$key] = $table->memorySize;
+
+                    unset($tables);
+                    foreach ($data as $key=>$memorySize) {
+                        $s = $key . ':';
+                        $l = strlen($key);
+                        if ($l < 19)
+                            $s .= str_repeat(' ', 19 - $l);
+                        $server->send($fd, $s . sprintf("%.2f\r\n", $memorySize / 1024));
                     }
-                    $server->send($fd, sprintf("Total:              %.2f\n", $key, $memorySizeAll / 1024));
+                    $server->send($fd, sprintf("*Total:             %.2f\r\n", array_sum($data) / 1024));
                 }
 
                 $server->send($fd, "[Each worker status (status worker:{$id})]\r\n");
