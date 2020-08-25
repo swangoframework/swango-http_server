@@ -1,9 +1,19 @@
 <?php
+use Swango\Cache\RedisErrorException;
 class session {
     const LIFETIME = 1209600; // 14天
     const SESSION_NAME = 'sid', SESSION_ID_LENGTH = 32;
     public const Agent_web = 1, Agent_wx = 2, Agent_ali = 3, Agent_app = 4;
     public const Agent_wmp = 5, Agent_webhook = 6, Agent_qmp = 7, Agent_oppo = 8, Agent_badam = 9, Agent_toutiao = 9, Agent_baidu = 10;
+    private static $init_keys = [];
+    public static function setInitKeys(string ...$keys): void {
+        if (empty($keys))
+            return;
+        if (in_array('__', $keys))
+            throw new Exception('Init keys must not contain "__"');
+        array_unshift($keys, '__');
+        self::$init_keys = $keys;
+    }
     public static function start(\Swoole\Http\Request $request, \Swoole\Http\Response $response, ?string $sid = null,
         ?string $agent = null): void {
         switch ($agent) {
@@ -41,10 +51,16 @@ class session {
 
             $redis = \Swango\Cache\RedisPool::pop();
             $redis->select(0);
-            $session_string = $redis->hGet($sid, '__');
-            if ($redis->errCode !== 0)
-                throw new \Swango\Cache\RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg",
-                    $redis->errCode);
+            if (empty(self::$init_keys)) {
+                $session_string = $redis->hGet($sid, '__');
+                if ($redis->errCode !== 0)
+                    throw new RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg", $redis->errCode);
+            } else {
+                $session_data_array = $redis->hMget($sid, self::$init_keys);
+                $session_string = current($session_data_array);
+                if ($redis->errCode !== 0)
+                    throw new RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg", $redis->errCode);
+            }
             \Swango\Cache\RedisPool::push($redis);
 
             if (isset($session_string)) {
@@ -57,6 +73,15 @@ class session {
 
                 $ob = new self($sid, $session_array['auth'],
                     $session_array['uid'] === 4294967295 ? null : $session_array['uid'], $session_array['time']);
+
+                $flag = true;
+                foreach (self::$init_keys as $i=>$key)
+                    if ($flag) {
+                        $flag = false;
+                    } else {
+                        $ob->data->{$key} = $session_data_array[$i];
+                    }
+
                 $ob->agent = $agent;
                 return;
             }
@@ -98,7 +123,7 @@ class session {
         $redis->select(0);
         $session_string = $redis->hGet($sid, '__');
         if ($redis->errCode !== 0)
-            throw new \Swango\Cache\RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg", $redis->errCode);
+            throw new RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg", $redis->errCode);
         \Swango\Cache\RedisPool::push($redis);
 
         if (isset($session_string)) {
@@ -249,9 +274,7 @@ class session {
             try {
                 $value = \Json::decodeAsObject($value);
             } catch(\JsonDecodeFailException $e) {
-                // 旧版本兼容，并试图以新格式存储
-                $value = \Swoole\serialize::unpack($value);
-                $ob->changed[$key] = true;
+                $value = null;
             }
         $ob->data->{$key} = $value;
         return $value;
@@ -269,9 +292,7 @@ class session {
             try {
                 $value = \Json::decodeAsObject($value);
             } catch(\JsonDecodeFailException $e) {
-                // 旧版本兼容，并试图以新格式存储
-                $value = \Swoole\serialize::unpack($value);
-                $ob->changed[$key] = true;
+                $value = null;
             }
         $ob->data->{$key} = $value;
         return isset($value);
@@ -398,10 +419,10 @@ class session {
         $redis = \Swango\Cache\RedisPool::pop();
         $redis->select(0);
         if ($redis->errCode !== 0)
-            throw new \Swango\Cache\RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg", $redis->errCode);
+            throw new RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg", $redis->errCode);
         $ret = $redis->{$name}(...$arguments);
         if ($redis->errCode !== 0)
-            throw new \Swango\Cache\RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg", $redis->errCode);
+            throw new RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg", $redis->errCode);
         \Swango\Cache\RedisPool::push($redis);
         return $ret;
     }
