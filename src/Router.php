@@ -97,6 +97,8 @@ class Router {
         do {
             if (in_array('', $action, true)) {
                 // Empty router not suppoted. Use as param
+                if (empty($action))
+                    break;
                 $par[] = array_pop($action);
                 continue;
             }
@@ -114,9 +116,13 @@ class Router {
             }
 
             if (! $class_exists) {
+                if (empty($action))
+                    break;
                 $par[] = array_pop($action);
                 continue;
             } elseif ((! empty($par) && ! $classname::WITH_PAR)) {
+                if (empty($action))
+                    break;
                 $par[] = array_pop($action);
                 continue;
             }
@@ -130,7 +136,7 @@ class Router {
 
             return $classname::getInstance()->setSwooleHttpObject($this->request, $response)->setPar(
                 ...array_reverse($par))->setMethod($this->method)->setAction($this->action);
-        } while ( ! empty($action) );
+        } while ( true );
         throw new \ExceptionToResponse\ResourceNotExistsException();
     }
     public function getMethod(): string {
