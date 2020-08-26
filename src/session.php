@@ -1,5 +1,4 @@
 <?php
-use Swango\Cache\RedisErrorException;
 class session {
     const LIFETIME = 1209600; // 14天
     const SESSION_NAME = 'sid', SESSION_ID_LENGTH = 32;
@@ -7,6 +6,11 @@ class session {
     public const Agent_wmp = 5, Agent_webhook = 6, Agent_qmp = 7, Agent_oppo = 8, Agent_badam = 9, Agent_toutiao = 9, Agent_baidu = 10;
     private static $init_keys = [];
     public static function setInitKeys(string ...$keys): void {
+        if (defined('SWANGO_WORKING_IN_WORKER'))
+            throw new Exception('Cannot call session::setInitKeys() in worker');
+        if (defined('SWANGO_WORKING_IN_TASK'))
+            throw new Exception('Cannot call session::setInitKeys() in task worker');
+
         if (empty($keys))
             return;
         if (in_array('__', $keys))
@@ -14,7 +18,7 @@ class session {
         array_unshift($keys, '__');
         self::$init_keys = $keys;
     }
-    public static function start(\Swoole\Http\Request $request, \Swoole\Http\Response $response, ?string $sid = null,
+    public static function start(Swoole\Http\Request $request, Swoole\Http\Response $response, ?string $sid = null,
         ?string $agent = null): void {
         switch ($agent) {
             case 'app' :
@@ -49,27 +53,27 @@ class session {
              preg_match('/[a-zA-Z0-9]{' . self::SESSION_ID_LENGTH . '}$/', $request->cookie[self::SESSION_NAME])))) {
             $sid = $sid ?? $request->cookie[self::SESSION_NAME];
 
-            $redis = \Swango\Cache\RedisPool::pop();
-            $redis->select(0);
-            if (empty(self::$init_keys)) {
-                $session_string = $redis->hGet($sid, '__');
-                if ($redis->errCode !== 0)
-                    throw new RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg", $redis->errCode);
-            } else {
-                $session_data_array = $redis->hMget($sid, self::$init_keys);
-                $session_string = current($session_data_array);
-                if ($redis->errCode !== 0)
-                    throw new RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg", $redis->errCode);
+            cache::select(0);
+            try {
+                if (empty(self::$init_keys)) {
+                    $session_string = cache::hGet($sid, '__');
+                } else {
+                    $session_data_array = cache::hMget($sid, self::$init_keys);
+                    $session_string = current($session_data_array);
+                }
+            } catch(Throwable $e) {
+                cache::select(1);
+                throw $e;
             }
-            \Swango\Cache\RedisPool::push($redis);
+            cache::select(1);
 
             if (isset($session_string)) {
                 $session_array = unpack('Jauth/Cagent/Nuid/Ntime', $session_string);
                 $agent = $session_array['agent'];
                 if ($agent === self::Agent_web)
-                    $response->cookie(self::SESSION_NAME, $sid, \Time\now() + 31536000, '/', null, true, true);
+                    $response->cookie(self::SESSION_NAME, $sid, Time\now() + 31536000, '/', null, true, true);
                 elseif (self::getAgentInString($agent) === null)
-                    $response->cookie(self::SESSION_NAME, $sid, \Time\now() + 31536000, '/');
+                    $response->cookie(self::SESSION_NAME, $sid, Time\now() + 31536000, '/');
 
                 $ob = new self($sid, $session_array['auth'],
                     $session_array['uid'] === 4294967295 ? null : $session_array['uid'], $session_array['time']);
@@ -89,11 +93,11 @@ class session {
             $tmp_string = self::getAgentInString($agent) ?? '';
             $tmp_string .= strtolower(base_convert(intval(microtime(true) * 1000), 10, 36));
 
-            $sid = $tmp_string . \XString\GenerateRandomString(self::SESSION_ID_LENGTH - strlen($tmp_string));
+            $sid = $tmp_string . XString\GenerateRandomString(self::SESSION_ID_LENGTH - strlen($tmp_string));
         }
 
         if (! isset($ob)) {
-            $ob = new self($sid, 0, null, \Time\now());
+            $ob = new self($sid, 0, null, Time\now());
             $ob->changed['__'] = true;
         }
 
@@ -109,9 +113,9 @@ class session {
             } else
                 $agent = self::Agent_web;
 
-            $response->cookie(self::SESSION_NAME, $sid, \Time\now() + 31536000, '/');
+            $response->cookie(self::SESSION_NAME, $sid, Time\now() + 31536000, '/');
         } elseif ($agent === self::Agent_wx || $agent === self::Agent_ali || $agent === self::Agent_web)
-            $response->cookie(self::SESSION_NAME, $sid, \Time\now() + 31536000, '/');
+            $response->cookie(self::SESSION_NAME, $sid, Time\now() + 31536000, '/');
         $ob->agent = $agent;
     }
     public static function startForWebhook(): void {
@@ -119,12 +123,14 @@ class session {
         $ob->agent = self::Agent_webhook;
     }
     public static function getUidBySid(string $sid): ?int {
-        $redis = \Swango\Cache\RedisPool::pop();
-        $redis->select(0);
-        $session_string = $redis->hGet($sid, '__');
-        if ($redis->errCode !== 0)
-            throw new RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg", $redis->errCode);
-        \Swango\Cache\RedisPool::push($redis);
+        cache::select(0);
+        try {
+            $session_string = cache::hGet($sid, '__');
+        } catch(Throwable $e) {
+            cache::select(1);
+            throw $e;
+        }
+        cache::select(1);
 
         if (isset($session_string)) {
             $session_array = unpack('Jauth/Cagent/Nuid/Ntime', $session_string);
@@ -133,19 +139,19 @@ class session {
         return null;
     }
     public static function end(): void {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (isset($ob))
             $ob->saveIfNeeded();
     }
     public static function getAgent(): ?int {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return null;
         return $ob->agent;
     }
     public static function getAgentInString(?string $agent = null): ?string {
         if (! isset($agent)) {
-            $ob = \SysContext::get('session');
+            $ob = SysContext::get('session');
             if (! isset($ob))
                 return null;
             $agent = $ob->agent;
@@ -172,38 +178,38 @@ class session {
         }
     }
     public static function getSessionStartTime(): ?int {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return null;
         return $ob->create_time;
     }
     public static function getId(): ?string {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return null;
         return $ob->sid;
     }
     public static function newSid(): ?string {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return null;
         $tmp_string = self::getAgentInString() ?? '';
         $tmp_string .= strtolower(base_convert(intval(microtime(true) * 1000), 10, 36));
 
-        $sid = $tmp_string . \XString\GenerateRandomString(self::SESSION_ID_LENGTH - strlen($tmp_string));
+        $sid = $tmp_string . XString\GenerateRandomString(self::SESSION_ID_LENGTH - strlen($tmp_string));
         $ob->sid = $sid;
         $ob->changed['__'] = true;
         return $sid;
     }
     public static function setLifeTime(int $life_time): bool {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return false;
         $ob->life_time = $life_time;
         return true;
     }
     public static function setUid(?int $uid): bool {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return false;
         if ($ob->uid !== $uid) {
@@ -213,13 +219,13 @@ class session {
         return true;
     }
     public static function getUid(): ?int {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return null;
         return $ob->uid;
     }
     public static function set(string $key, $value): bool {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return false;
         $ob->data->{$key} = $value;
@@ -234,7 +240,7 @@ class session {
      * @return int|NULL
      */
     public static function incrBy(string $key, int $value): ?int {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return null;
         $ret = $ob->hIncrBy($ob->sid, $key, $value);
@@ -244,7 +250,7 @@ class session {
         return $ret;
     }
     public static function setIfNotExists(string $key, $value): bool {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return false;
         if (array_key_exists($key, $ob->changed) && property_exists($ob->data, $key) && $ob->data->{$key} === null) {
@@ -262,7 +268,7 @@ class session {
         return false;
     }
     public static function get(string $key) {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return null;
         if (property_exists($ob->data, $key))
@@ -272,7 +278,7 @@ class session {
 
         if (isset($value))
             try {
-                $value = \Json::decodeAsObject($value);
+                $value = Json::decodeAsObject($value);
             } catch(\JsonDecodeFailException $e) {
                 $value = null;
             }
@@ -280,7 +286,7 @@ class session {
         return $value;
     }
     public static function has(string $key): bool {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return false;
         if (property_exists($ob->data, $key))
@@ -290,7 +296,7 @@ class session {
 
         if (isset($value))
             try {
-                $value = \Json::decodeAsObject($value);
+                $value = Json::decodeAsObject($value);
             } catch(\JsonDecodeFailException $e) {
                 $value = null;
             }
@@ -298,37 +304,37 @@ class session {
         return isset($value);
     }
     public static function hasAuth(int $auth): bool {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return false;
         return $ob->_hasAuth($auth);
     }
     public static function addAuth(int $auth): void {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return;
         $ob->_addAuth($auth);
     }
     public static function removeAuth(int $auth): void {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return;
         $ob->_removeAuth($auth);
     }
     public static function hasNoAuthAtAll(): bool {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return true;
         return $ob->auth === 0;
     }
     public static function clear(): void {
-        $ob = \SysContext::get('session');
+        $ob = SysContext::get('session');
         if (! isset($ob))
             return;
         $ob->delete($ob->sid);
         $ob->auth = 0;
         $ob->uid = null;
-        $ob->data = new \stdClass();
+        $ob->data = new stdClass();
         $ob->changed = [
             '__' => true
         ];
@@ -344,9 +350,9 @@ class session {
         $this->auth = $auth;
         $this->uid = $uid;
         $this->create_time = $create_time;
-        $this->data = new \stdClass();
+        $this->data = new stdClass();
         $this->save_if_needed = $save_if_needed;
-        \SysContext::set('session', $this);
+        SysContext::set('session', $this);
     }
     private static function _getAuthNum(int $auth): int {
         if ($auth === 1)
@@ -388,42 +394,27 @@ class session {
         foreach ($this->changed as $key=>$tmp) {
             $value = $this->data->{$key};
             if (isset($value))
-                $set[$key] = \Json::encode($value);
+                $set[$key] = Json::encode($value);
             else
                 $del[] = $key;
         }
-        if (! empty($set) && ! empty($del)) {
-            $container = \Swlib\Archer::getMultiTask();
-            $container->addTask([
-                $this,
-                'hMSet'
-            ], [
-                $this->sid,
-                $set
-            ]);
-            array_unshift($del, $this->sid);
-            $container->addTask([
-                $this,
-                'hDel'
-            ], $del);
-            $container->waitForAll();
-        } elseif (! empty($set)) {
+        if (! empty($set))
             $this->hMSet($this->sid, $set);
-        } elseif (! empty($del)) {
+        if (! empty($del))
             $this->hDel($this->sid, ...$del);
-        }
+
         $this->setTimeout($this->sid, $this->life_time ?? self::LIFETIME);
         $this->changed = [];
     }
     public function __call(string $name, $arguments) {
-        $redis = \Swango\Cache\RedisPool::pop();
-        $redis->select(0);
-        if ($redis->errCode !== 0)
-            throw new RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg", $redis->errCode);
-        $ret = $redis->{$name}(...$arguments);
-        if ($redis->errCode !== 0)
-            throw new RedisErrorException("Redis error: [$redis->errCode] $redis->errMsg", $redis->errCode);
-        \Swango\Cache\RedisPool::push($redis);
+        cache::select(0);
+        try {
+            $ret = cache::__callStatic($name, $arguments);
+        } catch(Throwable $e) {
+            cache::select(1);
+            throw $e;
+        }
+        cache::select(1);
         return $ret;
     }
 }
