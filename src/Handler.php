@@ -48,6 +48,7 @@ class Handler {
                     if (! $session_started && $controller::USE_SESSION && ! $controller::START_SESSION_LATER)
                         \session::start($request, $response);
                 }
+                \cache::select(1);
                 $controller->checkAuthority()->validate()->begin();
                 if ($router->getMethod() != 'GET')
                     $controller->jsonResponse();
