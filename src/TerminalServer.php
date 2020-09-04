@@ -3,7 +3,7 @@ namespace Swango\HttpServer;
 class TerminalServer {
     public static $log_queue_redis_key = 'http_server_log_host_queue';
     private $status, $gc_collect_cycles_result, $clear_cache_result;
-    private $fd_table, $switch_log_request_1, $switch_log_request_2, $notify_log_queue_atomic;
+    private $fd_table, $switch_log_request_1, $switch_log_request_2;
     public function __construct(\Swoole\Server\Port $port) {
         // $port->on('connect', [
         // $this,
@@ -21,7 +21,6 @@ class TerminalServer {
             'open_eof_split' => true,
             'package_eof' => "\r\n"
         ]);
-        $this->notify_log_queue_atomic = new \Swoole\Atomic(0);
         $this->switch_log_request_1 = new \Swoole\Atomic(0);
         $this->switch_log_request_2 = new \Swoole\Atomic(0);
         $this->fd_table = new \Swoole\Table(1024);
@@ -134,37 +133,6 @@ class TerminalServer {
                     $this->close($fd);
                 }
                 break;
-            case 'clearcache' :
-                if ($cmds[1] === 'app') {
-                    for($dst_worker_id = 0; $dst_worker_id < \Swango\Environment::getServiceConfig()->worker_num; ++ $dst_worker_id)
-                        @$server->sendMessage(pack('nN', 6, $fd), $dst_worker_id);
-                    if (class_exists('\\Controller\\app\\GET', false)) {
-                        $result = \Controller\app\GET::clearCache();
-                    } else {
-                        $result = 0;
-                    }
-                    $this->clear_cache_result[$fd] = [
-                        \Swango\HttpServer::getWorkerId() => $result
-                    ];
-                    // 各个进程可能先一步执行完，所以这里也要判断一下
-                    if (count($this->clear_cache_result[$fd]) === \Swango\Environment::getServiceConfig()->worker_num) {
-                        ksort($this->clear_cache_result[$fd]);
-                        $total_mem = array_sum($this->clear_cache_result[$fd]);
-                        array_walk($this->clear_cache_result[$fd],
-                            function (&$value, $key) {
-                                $value = sprintf('%.2f', $value / 1024);
-                            });
-                        $total_mem = sprintf('%.2f', $total_mem / 1024);
-                        $server->send($fd,
-                            'Clear memory(kb): ' . implode(' ', $this->clear_cache_result[$fd]) . " ($total_mem)\r\n");
-                        unset($this->clear_cache_result[$fd]);
-                        $this->close($fd);
-                    }
-                } else {
-                    $server->send($fd, "Invalid param:{$cmds[1]}\r\n");
-                    $this->close($fd);
-                }
-                break;
             default :
                 $this->close($fd);
         }
@@ -179,7 +147,7 @@ class TerminalServer {
             }
             $this->fd_table->del($fd);
         }
-        $this->notifyLogQueue(true);
+        $this->notifyLogQueue();
     }
     public function onPipeMessage(\Swoole\Server $server, int $src_worker_id, $message) {
         $arr = unpack('Nfd/ncmd', substr($message, 0, 6));
@@ -334,12 +302,10 @@ class TerminalServer {
         }
         return false;
     }
-    public function notifyLogQueue(bool $force = false) {
-        if ($force || $this->notify_log_queue_atomic->get() === 0 && $this->notify_log_queue_atomic->add() === 1) {
-            $redis = \Swango\Cache\RedisPool::pop();
-            $redis->select(1);
-            $redis->lPush(self::$log_queue_redis_key, \Swango\Environment::getServiceConfig()->local_ip);
-            \Swango\Cache\RedisPool::push($redis);
+    public function notifyLogQueue() {
+        if (null !== self::$log_queue_redis_key) {
+            \cache::select(1);
+            \cache::lPush(self::$log_queue_redis_key, \Swango\Environment::getServiceConfig()->local_ip);
         }
     }
 }

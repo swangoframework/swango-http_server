@@ -330,13 +330,6 @@ class HttpServer {
                 $fd = unpack('N', substr($message, 2, 4))[1];
                 self::$terminal_server->sendPipMessageToTerminalWorker($server, $fd, 4, $result);
                 break;
-            case 6 :
-                if (class_exists('\\Controller\\app\\GET', false))
-                    $result = \Controller\app\GET::clearCache();
-                else
-                    $result = 0;
-                $fd = unpack('N', substr($message, 2, 4))[1];
-                self::$terminal_server->sendPipMessageToTerminalWorker($server, $fd, 5, $result);
         }
     }
     public function onTask(\Swoole\Server $serv, int $task_id, int $src_worker_id, $data) {
