@@ -82,8 +82,14 @@ class session {
                 foreach (self::$init_keys as $i=>$key)
                     if ($flag) {
                         $flag = false;
+                    } elseif (isset($session_data_array[$i])) {
+                        try {
+                            $ob->data->{$key} = \Json::decodeAsObject($session_data_array[$i]);
+                        } catch(\JsonDecodeFailException $e) {
+                            $ob->data->{$key} = null;
+                        }
                     } else {
-                        $ob->data->{$key} = $session_data_array[$i];
+                        $ob->data->{$key} = null;
                     }
 
                 $ob->agent = $agent;
