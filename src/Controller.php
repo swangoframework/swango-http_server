@@ -20,9 +20,9 @@ abstract class Controller {
      */
     public static function getInstance(bool $create_if_not_exists = true): ?Controller {
         $ob = \SysContext::get('controller');
-        if (isset($ob))
+        if (isset($ob)) {
             return $ob;
-        elseif ($create_if_not_exists) {
+        } elseif ($create_if_not_exists) {
             $ob = new static();
             \SysContext::set('controller', $ob);
             return $ob;
@@ -42,8 +42,6 @@ abstract class Controller {
         $this->config();
     }
     public function setSwooleHttpObject(\Swoole\Http\Request $request, \Swoole\Http\Response $response): self {
-        if (! isset($request->post))
-            $request->post = new \stdClass();
         $this->swoole_http_request = $request;
         $this->swoole_http_response = $response;
         return $this;
@@ -69,8 +67,9 @@ abstract class Controller {
         return \Gateway::rollbackTransaction();
     }
     public function getClientIp(): string {
-        if (isset($this->swoole_http_request->header['x-forwarded-for']))
+        if (isset($this->swoole_http_request->header['x-forwarded-for'])) {
             return current(explode(', ', $this->swoole_http_request->header['x-forwarded-for']));
+        }
         return $this->swoole_http_request->server['remote_addr'];
     }
     /**
@@ -79,13 +78,15 @@ abstract class Controller {
      * @return int|NULL 正数表示服务器时间快，负数表示客户端时间快，0表示在误差允许范围内，NULL表示无法确定客户端时间
      */
     public function getClientTimeDifference(): ?int {
-        if (isset($this->client_time_difference))
-            if ($this->client_time_difference === false)
+        if (isset($this->client_time_difference)) {
+            if ($this->client_time_difference === false) {
                 return null;
-            else
+            } else {
                 return $this->client_time_difference;
+            }
+        }
         if (! isset($this->client_request_pack_timestamp) ||
-             ! isset($this->swoole_http_request->server['request_time_float'])) {
+            ! isset($this->swoole_http_request->server['request_time_float'])) {
             $this->client_time_difference = false;
             return null;
         }
@@ -96,8 +97,9 @@ abstract class Controller {
         } elseif ($this->client_request_pack_timestamp - 1000 > $request_timestamp) {
             // 客户端快
             $diff = $request_timestamp - $this->client_request_pack_timestamp + 1000;
-        } else
+        } else {
             $diff = 0;
+        }
         $this->client_time_difference = $diff;
         return $diff;
     }
@@ -149,52 +151,61 @@ abstract class Controller {
                     $pass = true;
                     break;
                 }
-            if (! $pass)
+            if (! $pass) {
                 throw new \ExceptionToResponse\InsufficientPermissionsException();
+            }
         }
         if (! $this->auth->isEmpty()) {
             foreach ($this->auth as $authes) {
-                if (count($authes) === 1 && current($authes) === Authorization::AUTH_NONE && \session::hasNoAuthAtAll())
+                if (count($authes) === 1 && current($authes) === Authorization::AUTH_NONE &&
+                    \session::hasNoAuthAtAll()) {
                     return $this;
+                }
                 $pass = true;
                 foreach ($authes as $auth)
                     if (! \session::hasAuth($auth)) {
                         $pass = false;
                         break;
                     }
-                if ($pass)
+                if ($pass) {
                     return $this;
+                }
             }
             throw new \ExceptionToResponse\InsufficientPermissionsException();
         }
         return $this;
     }
-    protected function config(): void {}
+    protected function config(): void {
+    }
     public function validate(): Controller {
+        $get = \SysContext::get('request_get') ?? new \stdClass();
+        $post = \SysContext::get('request_post') ?? new \stdClass();
         $this->par_validate->validate('URL', $this->par);
-        $this->get_validate->validate('QUERY', $this->swoole_http_request->get);
-        $this->post_validate->validate('POST', $this->swoole_http_request->post);
+        $this->get_validate->validate('QUERY', $get);
+        $this->post_validate->validate('POST', $post);
         $this->par_validate = $this->get_validate = $this->post_validate = null;
-        $this->get = $this->swoole_http_request->get;
-        $this->post = $this->swoole_http_request->post;
+        $this->get = $get;
+        $this->post = $post;
         return $this;
     }
     public function begin(): Controller {
         $ret = $this->handle(...$this->par);
-        if (isset($ret) && is_string($ret) && strlen($ret) > 0)
+        if (isset($ret) && is_string($ret) && strlen($ret) > 0) {
             throw new \ExceptionToResponse('Alert message', $ret);
+        }
         return $this;
     }
     public function endRequest(?string $body = null): bool {
-        if ($this->response_finished)
+        if ($this->response_finished) {
             return false;
+        }
         $this->swoole_http_response->end($body ?? '');
         $this->response_finished = true;
-        if (! isset($this->json_response_code))
+        if (! isset($this->json_response_code)) {
             $this->json_response_code = 200;
+        }
         return true;
     }
-    protected static $cache_response_func;
     protected function echoJson(int $code, string $enmsg, ?string $cnmsg, $data): void {
         $this->json_response_code = $code;
         $this->json_response_enmsg = $enmsg;
@@ -210,8 +221,8 @@ abstract class Controller {
             $this->swoole_http_response->header('Access-Control-Allow-Headers',
                 'Rsa-Certificate-Id, Mango-Rsa-Cert, Mango-Request-Rand, Content-Type');
             $this->swoole_http_response->header('Mango-Response-Crypt', 'On');
-            $echo = base64_encode(
-                openssl_encrypt($echo, 'aes-128-cbc', $this->encrypt_key, OPENSSL_RAW_DATA, '1234567890123456'));
+            $echo = base64_encode(openssl_encrypt($echo, 'aes-128-cbc', $this->encrypt_key, OPENSSL_RAW_DATA,
+                '1234567890123456'));
         } else {
             $this->swoole_http_response->header('Access-Control-Allow-Headers', 'Content-Type, Mango-Request-Rand');
             $this->swoole_http_response->header('Content-Type', 'application/json');
@@ -220,64 +231,65 @@ abstract class Controller {
             $this->swoole_http_response->header('Access-Control-Expose-Headers', 'Mango-Response-Crypt');
             $this->swoole_http_response->header('Access-Control-Allow-Origin', '*');
         }
-
         $this->endRequest($echo);
         if (isset($this->encrypt_key)) {
             $unique_request_id = \SysContext::get('unique_request_id');
             if (isset($unique_request_id)) {
-                if (self::$cache_response_func === null)
-                    self::$cache_response_func = function ($unique_request_id, $echo) {
+                go(function () use ($unique_request_id, $echo) {
+                    try {
                         \cache::select(2);
                         \cache::rPush($unique_request_id, $echo);
                         \cache::setTimeout($unique_request_id, 300);
-                    };
-                \Swlib\Archer::task(self::$cache_response_func,
-                    [
-                        $unique_request_id,
-                        $echo
-                    ]);
+                    } catch (\Throwable $e) {
+                        \FileLog::logThrowable($e, \Swango\Environment::getDir()->log . 'error/', 'Redis replay cache');
+                    }
+                });
             }
         }
     }
     public function jsonResponse(?array $data = null, ?string $enmsg = 'ok', ?string $cnmsg = '成功', int $code = 200): void {
-        if ($this->response_finished)
+        if ($this->response_finished) {
             return;
-        if (isset($this->transformer))
+        }
+        if (isset($this->transformer)) {
             $this->transformer->transform($data);
+        }
         $this->echoJson($code, $enmsg, $cnmsg, $data);
     }
     public function jsonRedirect(string $url, string $enmsg = 'Redirect', ?string $cnmsg = null): void {
-        if ($this->response_finished)
+        if ($this->response_finished) {
             return;
+        }
         $this->echoJson(302, $enmsg, $cnmsg, [
             'url' => $url
         ]);
     }
     public function jsonButton(string $msg, string $title, array ...$button): void {
-        if ($this->response_finished)
+        if ($this->response_finished) {
             return;
-        if (empty($button))
+        }
+        if (empty($button)) {
             $button[] = [
                 'words' => '知道了',
                 'action' => null,
                 'style' => 0
             ];
-
-        $this->echoJson(300, 'Alert', null,
-            [
-                'msg' => $msg,
-                'title' => $title,
-                'buttons' => $button
-            ]);
+        }
+        $this->echoJson(300, 'Alert', null, [
+            'msg' => $msg,
+            'title' => $title,
+            'buttons' => $button
+        ]);
     }
     public function getInputData(): string {
         return $this->swoole_http_request->rawContent();
     }
     public function setCookie($key, $value, $lifetime = 0, $path = '/'): void {
-        if ($lifetime == 0)
+        if ($lifetime == 0) {
             $expired = 0;
-        else
+        } else {
             $expired = $this->swoole_http_request->server['request_time'] + $lifetime;
+        }
         $this->swoole_http_response->cookie($key, $value, $expired, $path);
     }
     public function deleteCookie($key, $path = '/'): void {
@@ -293,8 +305,9 @@ abstract class Controller {
         return substr($classname, strpos($classname, "\\") + 1);
     }
     protected function redirect(string $path, bool $visible = false) {
-        if ($this->response_finished)
+        if ($this->response_finished) {
             return false;
+        }
         $this->json_response_code = 302;
         $this->json_response_enmsg = $path;
         if ($visible) {
@@ -308,11 +321,11 @@ abstract class Controller {
     }
     protected function E_404(): void {
         $this->swoole_http_response->status(404);
-        if ($this->method === 'GET')
-            $this->swoole_http_response->end(
-                '<html><head><title>404 Not Found</title></head><body bgcolor="white"><center><h1>404 Not Found</h1></center><hr><center>Tengine</center></body></html>');
-        else
+        if ($this->method === 'GET') {
+            $this->swoole_http_response->end('<html><head><title>404 Not Found</title></head><body bgcolor="white"><center><h1>404 Not Found</h1></center><hr><center>Tengine</center></body></html>');
+        } else {
             $this->swoole_http_response->end();
+        }
         $this->json_response_code = 404;
         $this->response_finished = true;
     }
