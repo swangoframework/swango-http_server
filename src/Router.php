@@ -14,7 +14,7 @@ class Router {
         }
         $v = null;
         $get = \SysContext::get('request_get');
-        if (isset($get) && is_numeric($get->v) && $get->v > 1 && $get->v < 100) {
+        if (isset($get) && isset($get->v) && is_numeric($get->v) && $get->v > 1 && $get->v < 100) {
             $v = (int)$get->v;
         }
         $uri = $request->server['request_uri'];
