@@ -2,8 +2,8 @@
 namespace Swango\HttpServer;
 use Swango\Environment;
 class Router {
-    public static $no_static_path = null;
-    private static $cache = [];
+    public static ?string $no_static_path = null;
+    private static array $cache = [];
     public static function getInstance(?\Swoole\Http\Request $request = null): Router {
         $ob = \SysContext::get('router');
         if (isset($ob)) {
@@ -31,7 +31,11 @@ class Router {
     public static function exists(): bool {
         return \SysContext::has('router');
     }
-    protected $action, $uri, $controller, $pars, $method, $controller_name, $version, $request, $host;
+    protected array $action;
+    protected string $uri, $method, $controller_name;
+    protected ?string $host;
+    protected ?int $version;
+    protected ?\Swoole\Http\Request $request;
     protected function __construct(string $uri, string $method, ?int $version) {
         $action = explode('/', strtolower($uri));
         array_shift($action);

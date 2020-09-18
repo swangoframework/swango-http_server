@@ -1,8 +1,10 @@
 <?php
 namespace Swango\HttpServer;
 abstract class Validator {
-    private $optional = false, $could_be_null = false, $key;
-    protected $cnmsg, $cnkey, $validate_function;
+    private bool $optional = false, $could_be_null = false;
+    protected string $cnkey;
+    protected ?string $cnmsg;
+    protected \SplQueue $validate_function;
     public function __construct(?string $cnkey) {
         $this->cnkey = $cnkey ?? '';
         $this->validate_function = new \SplQueue();
@@ -51,17 +53,21 @@ abstract class Validator {
     }
     abstract protected function check(?string $key, &$value): void;
     public function validate($key, &$value) {
-        if (! isset($value) || $value === '')
+        if (! isset($value) || $value === '') {
             if ($this->couldBeNull()) {
-                if ($value === '')
+                if ($value === '') {
                     $value = null;
+                }
                 return;
-            } else
+            } else {
                 throw new \ExceptionToResponse\InvalidParameterException('Invalid ' . $key, $this->getCnMsg());
+            }
+        }
         $this->check($key, $value);
-        if (method_exists($this, 'validate_function'))
+        if (method_exists($this, 'validate_function')) {
             $this->validate_function($value);
-        while ( ! $this->validate_function->isEmpty() ) {
+        }
+        while (! $this->validate_function->isEmpty()) {
             $func = $this->validate_function->dequeue();
             $func($value);
             unset($func);

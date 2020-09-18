@@ -3,21 +3,24 @@ namespace Swango\HttpServer;
 /**
  *
  * @author fdream
- * @property string $encrypt_key
- * @property int $client_request_pack_timestamp
  */
 abstract class Controller {
     const WITH_PAR = false, USE_SESSION = true, START_SESSION_LATER = false, USE_ROUTER_CACHE = true;
-    protected $par_validate, $get_validate, $post_validate, $transformer;
-    protected $swoole_http_request, $swoole_http_response;
-    protected $par, $auth, $agent, $method, $action, $response_finished = false;
-    protected $post, $get;
-    private $client_time_difference;
-    public $json_response_code, $json_response_enmsg, $json_response_cnmsg;
+    protected ?Validator $par_validate, $get_validate, $post_validate;
+    protected ?\Swoole\Http\Request $swoole_http_request;
+    protected ?\Swoole\Http\Response $swoole_http_response;
+    protected \SplQueue $auth;
+    protected array $agent, $par, $action;
+    protected string $method;
+    protected bool $response_finished = false;
+    protected object $post, $get;
     /**
-     *
-     * @return \Controller
+     * @var null|int|bool
      */
+    private $client_time_difference;
+    public ?string $json_response_enmsg, $json_response_cnmsg;
+    public ?int $json_response_code, $client_request_pack_timestamp = null;
+    public ?string $encrypt_key = null;
     public static function getInstance(bool $create_if_not_exists = true): ?Controller {
         $ob = \SysContext::get('controller');
         if (isset($ob)) {
@@ -36,9 +39,8 @@ abstract class Controller {
         $this->post_validate = new Validator\Ob('POST包体');
         $this->get_validate = new Validator\Ob('Query参数');
         $this->par_validate = new Validator\Ob('URL参数');
-        $this->transformer = new Transformer\Ob();
         $this->auth = new \SplQueue();
-        $this->agent = [];
+        $this->permit_agent = [];
         $this->config();
     }
     public function setSwooleHttpObject(\Swoole\Http\Request $request, \Swoole\Http\Response $response): self {
@@ -139,14 +141,14 @@ abstract class Controller {
      * @return self
      */
     protected function setPermitAgent(int ...$agent): self {
-        $this->agent = $agent;
+        $this->permit_agent = $agent;
         return $this;
     }
     public function checkAuthority(): self {
-        if (! empty($this->agent)) {
+        if (! empty($this->permit_agent)) {
             $pass = false;
             $current_agent = \session::getAgent();
-            foreach ($this->agent as $agent)
+            foreach ($this->permit_agent as $agent)
                 if ($current_agent === $agent) {
                     $pass = true;
                     break;
@@ -210,28 +212,33 @@ abstract class Controller {
         $this->json_response_code = $code;
         $this->json_response_enmsg = $enmsg;
         $this->json_response_cnmsg = $cnmsg;
-        $data = [
-            'code' => $code,
-            'enmsg' => $enmsg,
-            'cnmsg' => $cnmsg,
-            'data' => $data
-        ];
-        $echo = str_replace('\\n', '\\' . 'n', \Json::encode($data));
-        if (isset($this->encrypt_key)) {
-            $this->swoole_http_response->header('Access-Control-Allow-Headers',
-                'Rsa-Certificate-Id, Mango-Rsa-Cert, Mango-Request-Rand, Content-Type');
-            $this->swoole_http_response->header('Mango-Response-Crypt', 'On');
-            $echo = base64_encode(openssl_encrypt($echo, 'aes-128-cbc', $this->encrypt_key, OPENSSL_RAW_DATA,
-                '1234567890123456'));
-        } else {
-            $this->swoole_http_response->header('Access-Control-Allow-Headers', 'Content-Type, Mango-Request-Rand');
-            $this->swoole_http_response->header('Content-Type', 'application/json');
-        }
+        $echo = \Json::encode([
+            'code' => &$code,
+            'enmsg' => &$enmsg,
+            'cnmsg' => &$cnmsg,
+            'data' => &$data
+        ]);
         if (IS_DEV) {
             $this->swoole_http_response->header('Access-Control-Expose-Headers', 'Mango-Response-Crypt');
             $this->swoole_http_response->header('Access-Control-Allow-Origin', '*');
         }
-        $this->endRequest($echo);
+        if (isset($this->encrypt_key)) {
+            if (strlen($echo) < 256) {
+                $this->swoole_http_response->header('Access-Control-Allow-Headers',
+                    'Rsa-Certificate-Id, Mango-Rsa-Cert, Mango-Request-Rand, Content-Type');
+                $this->swoole_http_response->header('Mango-Response-Crypt', 'On');
+                $echo = base64_encode(openssl_encrypt($echo, 'aes-128-cbc', $this->encrypt_key, OPENSSL_RAW_DATA,
+                    '1234567890123456'));
+                $this->endRequest($echo);
+            } else {
+                \Swango\HttpServer::getWorker()->taskwait(pack('CN', 16, $this->swoole_http_response->fd) .
+                    $this->encrypt_key . $echo, 5);
+            }
+        } else {
+            $this->swoole_http_response->header('Access-Control-Allow-Headers', 'Content-Type, Mango-Request-Rand');
+            $this->swoole_http_response->header('Content-Type', 'application/json');
+            $this->endRequest($echo);
+        }
         if (isset($this->encrypt_key)) {
             $unique_request_id = \SysContext::get('unique_request_id');
             if (isset($unique_request_id)) {
@@ -250,9 +257,6 @@ abstract class Controller {
     public function jsonResponse(?array $data = null, ?string $enmsg = 'ok', ?string $cnmsg = '成功', int $code = 200): void {
         if ($this->response_finished) {
             return;
-        }
-        if (isset($this->transformer)) {
-            $this->transformer->transform($data);
         }
         $this->echoJson($code, $enmsg, $cnmsg, $data);
     }
@@ -321,11 +325,13 @@ abstract class Controller {
     }
     protected function E_404(): void {
         $this->swoole_http_response->status(404);
-        if ($this->method === 'GET') {
-            $this->swoole_http_response->end('<html><head><title>404 Not Found</title></head><body bgcolor="white"><center><h1>404 Not Found</h1></center><hr><center>Tengine</center></body></html>');
-        } else {
-            $this->swoole_http_response->end();
-        }
+        $this->swoole_http_response->end('<html><head><title>404 Not Found</title></head><body bgcolor="white"><center><h1>404 Not Found</h1></center><hr><center>nginx</center></body></html>');
+        $this->json_response_code = 404;
+        $this->response_finished = true;
+    }
+    protected function E_500(): void {
+        $this->swoole_http_response->status(500);
+        $this->swoole_http_response->end('<html><head><title>500 Internal Server</title></head><body bgcolor="white"><center><h1>500 Internal Server</h1></center><hr><center>nginx</center></body></html>');
         $this->json_response_code = 404;
         $this->response_finished = true;
     }

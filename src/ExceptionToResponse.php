@@ -7,12 +7,14 @@ interface ExceptionToResponseInterface {
 }
 class ExceptionToResponse extends \Exception implements ExceptionToResponseInterface {
     const HEADER_STR = '200 OK';
-    private $cnmsg, $data;
-    public function __construct($enmsg = null, $cnmsg = null, $code = 200, $data = null, $retry_time = null) {
+    private ?string $cnmsg;
+    private $data;
+    public function __construct(?string $enmsg = null, ?string $cnmsg = null, int $code = 200, $data = null, $retry_time = null) {
         $this->cnmsg = $cnmsg;
         $this->data = $data;
-        if (isset($retry_time))
+        if (isset($retry_time)) {
             $this->retryTime = $retry_time;
+        }
         parent::__construct($enmsg, $code);
     }
     public function getCnMsg() {

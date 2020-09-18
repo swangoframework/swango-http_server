@@ -2,7 +2,11 @@
 namespace Swango;
 use Swango\Environment;
 class HttpServer {
-    protected static $worker, $worker_id, $terminal_server, $http_request_counter, $max_coroutine, $is_stopping = false;
+    protected static int $worker_id, $max_coroutine = 3000;
+    protected static bool $is_stopping = false;
+    protected static \Swoole\Atomic\Long $http_request_counter;
+    protected static \Swoole\Server $worker;
+    protected static HttpServer\TerminalServer $terminal_server;
     public static function getWorkerId(): ?int {
         return self::$worker_id;
     }
@@ -112,8 +116,9 @@ class HttpServer {
         \Swango\Db\Pool\slave::init();
         \Swango\Model\LocalCache::init();
         self::$http_request_counter = new \Swoole\Atomic\Long();
-        self::$max_coroutine = array_key_exists('max_coroutine',
-            $this->swoole_server_config) ? $this->swoole_server_config['max_coroutine'] : 3000;
+        if (isset($this->swoole_server_config['max_coroutine'])) {
+            self::$max_coroutine = $this->swoole_server_config['max_coroutine'];
+        }
     }
     public function start($daemonize = false): void {
         if ($this->getPid() !== null) {
@@ -197,11 +202,11 @@ class HttpServer {
     public function onManagerStart(\Swoole\Server $server): void {
         @cli_set_process_title(Environment::getName() . ' manager');
     }
-    private function onTaskStart(\Swoole\Server $serv, $worker_id): void {
+    protected function onTaskStart(\Swoole\Server $serv, int $worker_id): void {
         define('SWANGO_WORKING_IN_TASK', true);
         Environment::getWorkingMode()->reset();
     }
-    private function onWorkerStart(\Swoole\Server $serv, $worker_id): void {
+    protected function onWorkerStart(\Swoole\Server $serv, int $worker_id): void {
         define('SWANGO_WORKING_IN_WORKER', true);
         Environment::getWorkingMode()->reset();
         $serv->worker_http_request_counter = 0;
@@ -217,7 +222,7 @@ class HttpServer {
             });
         }
     }
-    public function onAllWorkerStart(\Swoole\Server $serv, $worker_id): void {
+    public function onAllWorkerStart(\Swoole\Server $serv, int $worker_id): void {
         if (function_exists('opcache_reset')) {
             opcache_reset();
         }
@@ -276,9 +281,9 @@ class HttpServer {
         $request_time = (int)$request_time_float;
         $client_ip = $request->header['x-forwarded-for'] ?? $request->server['remote_addr'];
         $client_ip_int = ip2long(current(explode(', ', $client_ip)));
-        $local_ip_right = ip2long(Environment::getServiceConfig()->local_ip) % 0x10000;
+        $local_ip_right = ip2long(Environment::getServiceConfig()->local_ip) & 0xFFFF;
         $request_id = sprintf('%08x-%04x-4%03x-%x%03x-%07x%05x', $client_ip_int, $local_ip_right, mt_rand(0, 0xFFF),
-            mt_rand(8, 0xB), mt_rand(0, 0xFFF), ((int)$request_time) >> 4, $count % 0x100000);
+            mt_rand(8, 0xB), mt_rand(0, 0xFFF), ((int)$request_time) >> 4, $count & 0xFFFFF);
         \SysContext::set('request_id', $request_id);
         $response->header('X-Request-ID', $request_id);
         $micro_second = substr(sprintf('%.3f', $request_time_float - $request_time), 2);
@@ -339,27 +344,51 @@ class HttpServer {
                 break;
         }
     }
+    protected function _mangoParseRequestBody(int $cmd, int $index, string &$data) {
+        static $certs = [];
+        if (! array_key_exists($index, $certs)) {
+            $certname = Environment::getDir()->data . 'cert/rsa_private_key_' . $index . '.pem';
+            if (! file_exists($certname)) {
+                return -3;
+            }
+            $key = include $certname;
+            mangoParseRequest_SetPrivateKey($index, $key);
+            $certs[$index] = null;
+        }
+        if ($cmd === 1) {
+            return mangoParseRequest($data, 2, $index, false);
+        } else {
+            return mangoParseRequestRaw($data, 2, $index, false);
+        }
+    }
+    protected function _mangoEncryptResponseBody(int $fd, string &$data) {
+        $resp = \Swoole\Http\Response::create($fd);
+        if ($resp instanceof \Swoole\Http\Response) {
+            $encrypt_key = substr($data, 0, 16);
+            $body = substr($data, 16);
+            $resp->header('Access-Control-Allow-Headers',
+                'Rsa-Certificate-Id, Mango-Rsa-Cert, Mango-Request-Rand, Content-Type');
+            $resp->header('Mango-Response-Crypt', 'On');
+            $resp->end(base64_encode(openssl_encrypt($body, 'aes-128-cbc', $encrypt_key, OPENSSL_RAW_DATA,
+                '1234567890123456')));
+        }
+    }
     public function onTask(\Swoole\Server $serv, int $task_id, int $src_worker_id, $data) {
         [
-            'cmd' => $cmd,
-            'index' => $index
-        ] = unpack('Ccmd/Cindex', $data);
-        if ($cmd === 1 || $cmd === 2) {
-            static $certs = [];
-            if (! array_key_exists($index, $certs)) {
-                $certname = Environment::getDir()->data . 'cert/rsa_private_key_' . $index . '.pem';
-                if (! file_exists($certname)) {
-                    return -3;
-                }
-                $key = include $certname;
-                mangoParseRequest_SetPrivateKey($index, $key);
-                $certs[$index] = null;
-            }
-            if ($cmd === 1) {
-                return mangoParseRequest(substr($data, 2), $index, false);
-            } else {
-                return mangoParseRequestRaw(substr($data, 2), $index, false);
-            }
+            'cmd' => $cmd
+        ] = unpack('Ccmd', $data[0]);
+        if (1 === $cmd || 2 === $cmd) {
+            [
+                'index' => $index
+            ] = unpack('Cindex', $data[1]);
+            $data = substr($data, 2);
+            return $this->_mangoParseRequestBody($cmd, $index, $data);
+        } elseif (16 === $cmd) {
+            [
+                'fd' => $fd
+            ] = unpack('Nfd', substr($data, 1, 4));
+            $data = substr($data, 5);
+            $this->_mangoEncryptResponseBody($fd, $data);
         }
     }
     public function onFinish(\Swoole\Server $serv, int $task_id, string $data) {

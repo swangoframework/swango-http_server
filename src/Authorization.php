@@ -2,12 +2,13 @@
 namespace Swango\HttpServer;
 abstract class Authorization {
     public const AUTH_NONE = 0;
-    private static $func;
+    private static $func = null;
     public static function getUidWithRole(): string {
         if (null === self::$func) {
             $user_id = \session::getUid();
-            if (null === $user_id)
+            if (null === $user_id) {
                 return '';
+            }
             return $user_id;
         } else {
             return (self::$func)();

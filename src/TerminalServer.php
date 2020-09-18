@@ -1,9 +1,10 @@
 <?php
 namespace Swango\HttpServer;
 class TerminalServer {
-    public static $log_queue_redis_key = 'http_server_log_host_queue';
-    private $status, $gc_collect_cycles_result, $clear_cache_result;
-    private $fd_table, $switch_log_request_1, $switch_log_request_2;
+    public static ?string $log_queue_redis_key = 'http_server_log_host_queue';
+    private \Swoole\Table $fd_table;
+    private array $status = [], $gc_collect_cycles_result = [], $clear_cache_result = [];
+    private \Swoole\Atomic $switch_log_request_1, $switch_log_request_2;
     public function __construct(\Swoole\Server\Port $port) {
         // $port->on('connect', [
         // $this,
@@ -29,19 +30,17 @@ class TerminalServer {
         $this->fd_table->create();
     }
     public function onConnect(\Swoole\Server $server, int $fd, int $reactor_id): void {
-        $this->fd_table->set($fd,
-            [
-                'worker_id' => $server->worker_id,
-                'switch' => 0
-            ]);
+        $this->fd_table->set($fd, [
+            'worker_id' => $server->worker_id,
+            'switch' => 0
+        ]);
     }
     public function onReceive(\Swoole\Server $server, int $fd, int $reactor_id, string $data): void {
-        $this->fd_table->set($fd,
-            [
-                'worker_id' => $server->worker_id,
-                'switch' => 0
-            ]);
-        $data = substr($data, 0, - 2);
+        $this->fd_table->set($fd, [
+            'worker_id' => $server->worker_id,
+            'switch' => 0
+        ]);
+        $data = substr($data, 0, -2);
         $cmds = explode("\x1E", $data);
         switch ($cmds[0]) {
             case 'show' :
@@ -97,23 +96,23 @@ class TerminalServer {
                 $server->send($fd, "Tcp close count:    {$stats['close_count']}\r\n");
                 $server->send($fd, 'Http resquest count:' . \Swango\HttpServer::getTotalHttpRequest() . "\r\n");
                 $server->send($fd, "[Model cache (Swoole\\Table) memory size(kb)]\r\n");
-
                 $data = \Swango\Model\LocalCache::getAllInstanceSizes();
                 if (empty($data)) {
                     $server->send($fd, "*No model cache created\r\n");
                 } else {
-                    foreach ($data as $key=>$memorySize) {
+                    foreach ($data as $key => $memorySize) {
                         $s = $key . ':';
                         $l = strlen($key);
-                        if ($l < 19)
+                        if ($l < 19) {
                             $s .= str_repeat(' ', 19 - $l);
+                        }
                         $server->send($fd, $s . sprintf("%.2f\r\n", $memorySize / 1024));
                     }
                     $server->send($fd, sprintf("*Total:             %.2f\r\n", array_sum($data) / 1024));
                 }
-
                 $server->send($fd, "[Each worker status (status worker:{$id})]\r\n");
-                for($dst_worker_id = 0; $dst_worker_id < \Swango\Environment::getServiceConfig()->worker_num; ++ $dst_worker_id)
+                for ($dst_worker_id = 0; $dst_worker_id <
+                \Swango\Environment::getServiceConfig()->worker_num; ++$dst_worker_id)
                     @$server->sendMessage(pack('nN', 2, $fd), $dst_worker_id);
                 break;
             case 'gcmem' :
@@ -121,14 +120,15 @@ class TerminalServer {
                 $this->gc_collect_cycles_result[$fd] = [
                     \Swango\HttpServer::getWorkerId() => $result
                 ];
-                for($dst_worker_id = 0; $dst_worker_id < \Swango\Environment::getServiceConfig()->worker_num; ++ $dst_worker_id)
+                for ($dst_worker_id = 0; $dst_worker_id <
+                \Swango\Environment::getServiceConfig()->worker_num; ++$dst_worker_id)
                     @$server->sendMessage(pack('nN', 5, $fd), $dst_worker_id);
                 // 各个进程可能先一步执行完，所以这里也要判断一下
-                if (count($this->gc_collect_cycles_result[$fd]) === \Swango\Environment::getServiceConfig()->worker_num) {
+                if (count($this->gc_collect_cycles_result[$fd]) ===
+                    \Swango\Environment::getServiceConfig()->worker_num) {
                     ksort($this->gc_collect_cycles_result[$fd]);
-                    $server->send($fd,
-                        'Collect cycles: ' . implode(' ', $this->gc_collect_cycles_result[$fd]) . ' (' .
-                             array_sum($this->gc_collect_cycles_result[$fd]) . ")\r\n");
+                    $server->send($fd, 'Collect cycles: ' . implode(' ', $this->gc_collect_cycles_result[$fd]) . ' (' .
+                        array_sum($this->gc_collect_cycles_result[$fd]) . ")\r\n");
                     unset($this->gc_collect_cycles_result[$fd]);
                     $this->close($fd);
                 }
@@ -175,7 +175,7 @@ class TerminalServer {
                     $this->status[$fd]->context_size[$src_worker_id]
                 ] = explode('-', $message);
                 if (count($this->status[$fd]->worker_request_count) ===
-                     \Swango\Environment::getServiceConfig()->worker_num) {
+                    \Swango\Environment::getServiceConfig()->worker_num) {
                     ksort($this->status[$fd]->worker_request_count);
                     ksort($this->status[$fd]->worker_master_db_count);
                     ksort($this->status[$fd]->worker_slave_db_count);
@@ -186,51 +186,46 @@ class TerminalServer {
                     ksort($this->status[$fd]->context_size);
                     $server->send($fd,
                         'Running requests:   ' . implode(' ', $this->status[$fd]->worker_request_count) . ' (' .
-                             array_sum($this->status[$fd]->worker_request_count) . ")\r\n");
+                        array_sum($this->status[$fd]->worker_request_count) . ")\r\n");
                     $server->send($fd,
                         'Master connections: ' . implode(' ', $this->status[$fd]->worker_master_db_count) . ' (' .
-                             array_sum($this->status[$fd]->worker_master_db_count) . ")\r\n");
+                        array_sum($this->status[$fd]->worker_master_db_count) . ")\r\n");
                     $server->send($fd,
                         'Slave connections:  ' . implode(' ', $this->status[$fd]->worker_slave_db_count) . ' (' .
-                             array_sum($this->status[$fd]->worker_slave_db_count) . ")\r\n");
+                        array_sum($this->status[$fd]->worker_slave_db_count) . ")\r\n");
                     $total_mem = array_sum($this->status[$fd]->worker_memory_usage);
-                    array_walk($this->status[$fd]->worker_memory_usage,
-                        function (&$value, $key) {
-                            $value = sprintf('%.2f', $value / 1024);
-                        });
+                    array_walk($this->status[$fd]->worker_memory_usage, function (&$value, $key) {
+                        $value = sprintf('%.2f', $value / 1024);
+                    });
                     $total_mem = sprintf('%.2f', $total_mem / 1024);
-                    $server->send($fd,
-                        'Memory usage(kb):   ' . implode(' ', $this->status[$fd]->worker_memory_usage) .
-                             " ($total_mem)\r\n");
+                    $server->send($fd, 'Memory usage(kb):   ' . implode(' ', $this->status[$fd]->worker_memory_usage) .
+                        " ($total_mem)\r\n");
                     $total_mem = array_sum($this->status[$fd]->worker_memory_peak_usage);
-                    array_walk($this->status[$fd]->worker_memory_peak_usage,
-                        function (&$value, $key) {
-                            $value = sprintf('%.2f', $value / 1024);
-                        });
+                    array_walk($this->status[$fd]->worker_memory_peak_usage, function (&$value, $key) {
+                        $value = sprintf('%.2f', $value / 1024);
+                    });
                     $total_mem = sprintf('%.2f', $total_mem / 1024);
                     $server->send($fd,
                         'Mem peak usage(kb): ' . implode(' ', $this->status[$fd]->worker_memory_peak_usage) .
-                             " ($total_mem)\r\n");
-                    $server->send($fd,
-                        'Coroutine num:      ' . implode(' ', $this->status[$fd]->coroutine_num) . ' (' .
-                             array_sum($this->status[$fd]->coroutine_num) . ")\r\n");
+                        " ($total_mem)\r\n");
+                    $server->send($fd, 'Coroutine num:      ' . implode(' ', $this->status[$fd]->coroutine_num) . ' (' .
+                        array_sum($this->status[$fd]->coroutine_num) . ")\r\n");
                     $server->send($fd,
                         'Coroutine peak num: ' . implode(' ', $this->status[$fd]->coroutine_peak_num) . ' (' .
-                             array_sum($this->status[$fd]->coroutine_peak_num) . ")\r\n");
-                    $server->send($fd,
-                        'Context size:       ' . implode(' ', $this->status[$fd]->context_size) . ' (' .
-                             array_sum($this->status[$fd]->context_size) . ")\r\n");
+                        array_sum($this->status[$fd]->coroutine_peak_num) . ")\r\n");
+                    $server->send($fd, 'Context size:       ' . implode(' ', $this->status[$fd]->context_size) . ' (' .
+                        array_sum($this->status[$fd]->context_size) . ")\r\n");
                     unset($this->status[$fd]);
                     $this->close($fd);
                 }
                 break;
             case 4 :
                 $this->gc_collect_cycles_result[$fd][$src_worker_id] = (int)$message;
-                if (count($this->gc_collect_cycles_result[$fd]) === \Swango\Environment::getServiceConfig()->worker_num) {
+                if (count($this->gc_collect_cycles_result[$fd]) ===
+                    \Swango\Environment::getServiceConfig()->worker_num) {
                     ksort($this->gc_collect_cycles_result[$fd]);
-                    $server->send($fd,
-                        'Collect cycles: ' . implode(' ', $this->gc_collect_cycles_result[$fd]) . ' (' .
-                             array_sum($this->gc_collect_cycles_result[$fd]) . ")\r\n");
+                    $server->send($fd, 'Collect cycles: ' . implode(' ', $this->gc_collect_cycles_result[$fd]) . ' (' .
+                        array_sum($this->gc_collect_cycles_result[$fd]) . ")\r\n");
                     unset($this->gc_collect_cycles_result[$fd]);
                     $this->close($fd);
                 }
@@ -240,14 +235,13 @@ class TerminalServer {
                 if (count($this->clear_cache_result[$fd]) === \Swango\Environment::getServiceConfig()->worker_num) {
                     ksort($this->clear_cache_result[$fd]);
                     $total_mem = array_sum($this->clear_cache_result[$fd]);
-                    array_walk($this->clear_cache_result[$fd],
-                        function (&$value, $key) {
-                            if ($value === 0) {
-                                $value = '0.00';
-                            } else {
-                                $value = sprintf('%.2f', $value / 1024);
-                            }
-                        });
+                    array_walk($this->clear_cache_result[$fd], function (&$value, $key) {
+                        if ($value === 0) {
+                            $value = '0.00';
+                        } else {
+                            $value = sprintf('%.2f', $value / 1024);
+                        }
+                    });
                     $total_mem = sprintf('%.2f', $total_mem / 1024);
                     $server->send($fd,
                         'Clear memory(kb): ' . implode(' ', $this->clear_cache_result[$fd]) . " ($total_mem)\r\n");
@@ -280,7 +274,7 @@ class TerminalServer {
     public function send(string $data, int $switch): bool {
         $worker = \Swango\HttpServer::getWorker();
         $result = false;
-        foreach ($this->fd_table as $fd=>$row) {
+        foreach ($this->fd_table as $fd => $row) {
             if ($row['switch'] === $switch) {
                 if ($row['worker_id'] === $worker->worker_id) {
                     if (! $worker->send($fd, $data . "\r\n")) {

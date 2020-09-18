@@ -7,6 +7,7 @@
 		"http_server"
 	],
 	"require" : {
+		"php" : ">=7.4",
 		"swango/db" : "^1.0",
 		"swango/cache" : "^1.0",
 		"swango/environment" : "^1.0",
