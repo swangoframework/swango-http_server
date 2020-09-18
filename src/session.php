@@ -462,7 +462,7 @@ class session {
         $this->setTimeout($this->sid, $this->life_time ?? self::LIFETIME);
         $this->changed = [];
     }
-    private function __call(string $name, $arguments) {
+    public function __call(string $name, $arguments) {
         cache::select(0);
         try {
             $ret = cache::__callStatic($name, $arguments);
