@@ -70,4 +70,7 @@ class Agent implements AgentMapInterface {
     public function useCookieForSession(int $agent_id): bool {
         return self::Agent_web === $agent_id || self::Agent_wx === $agent_id || self::Agent_ali === $agent_id;
     }
+    public function echoErrorMsgWhenMethodGet(int $agent_id): bool {
+        return $agent_id == self::Agent_web || $agent_id == self::Agent_wx;
+    }
 }

@@ -299,12 +299,6 @@ abstract class Controller {
     public function deleteCookie($key, $path = '/'): void {
         $this->swoole_http_response->cookie($key, '', \Time\now() - 3600, $path);
     }
-    protected function isWeiXin(): bool {
-        return \session::getAgent() == \session::Agent_wx;
-    }
-    protected function isAlipay(): bool {
-        return \session::getAgent() == \session::Agent_ali;
-    }
     protected function getAction($classname): string {
         return substr($classname, strpos($classname, "\\") + 1);
     }

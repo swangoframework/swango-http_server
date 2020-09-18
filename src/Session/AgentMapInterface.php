@@ -7,4 +7,5 @@ interface AgentMapInterface {
     public function getWebhookAgentId(): int;
     public function getAgentFromUserAgent(string $user_agent): int;
     public function useCookieForSession(int $agent_id): bool;
+    public function echoErrorMsgWhenMethodGet(int $agent_id): bool;
 }

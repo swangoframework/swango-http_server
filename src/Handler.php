@@ -100,7 +100,7 @@ class Handler {
             $data = null;
         }
         if (isset($router) && $router->getMethod() == 'GET' &&
-            (\session::getAgent() == \session::Agent_web || \session::getAgent() == \session::Agent_wx)) {
+            \session::getAgentMap()->echoErrorMsgWhenMethodGet(\session::getAgent())) {
             $response->header('Content-Type', 'text/html; charset=UTF-8');
             $response->end($cnmsg);
         } elseif (isset($controller)) {
