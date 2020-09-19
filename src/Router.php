@@ -39,7 +39,7 @@ class Router {
     protected function __construct(string $uri, string $method, ?int $version) {
         $action = explode('/', strtolower($uri));
         array_shift($action);
-        if (end($action) == '') {
+        if ('' === end($action)) {
             array_pop($action);
         }
         $this->action = $action;
@@ -65,7 +65,7 @@ class Router {
     }
     public function isWebhook(): bool {
         $action1 = reset($this->action);
-        return $action1 == 'webhook' || $action1 == 'server' || $action1 == 'service';
+        return 'webhook' === $action1 || 'server' === $action1 || 'service' === $action1;
     }
     public function getHost(): string {
         return $this->host ?? '';

@@ -25,10 +25,6 @@ class Handler {
                     null
                 ];
             }
-            /**
-             *
-             * @var \Controller $controller
-             */
             $controller = $router->getController($response);
             if ($controller instanceof Controller\StaticResourceController) {
                 $controller->begin()->endRequest();
@@ -36,9 +32,9 @@ class Handler {
                 if ($router->isWebhook()) {
                     \session::startForWebhook();
                 } else {
-                    if ($router->getMethod() == 'POST') {
+                    if ('POST' === $router->getMethod()) {
                         $session_started = self::parseRequest($request, $response, $controller);
-                        if ($session_started === null) {
+                        if (null === $session_started) {
                             return [
                                 200,
                                 'replay request',
@@ -54,7 +50,7 @@ class Handler {
                 }
                 \cache::select(1);
                 $controller->checkAuthority()->validate()->begin();
-                if ($router->getMethod() != 'GET') {
+                if ('GET' !== $router->getMethod()) {
                     $controller->jsonResponse();
                 } else {
                     $controller->endRequest();
@@ -99,7 +95,7 @@ class Handler {
             $cnmsg = '服务器出现内部错误，请稍后重试';
             $data = null;
         }
-        if (isset($router) && $router->getMethod() == 'GET' &&
+        if (isset($router) && 'GET' === $router->getMethod() &&
             \session::getAgentMap()->echoErrorMsgWhenMethodGet(\session::getAgent())) {
             $response->header('Content-Type', 'text/html; charset=UTF-8');
             $response->end($cnmsg);
@@ -221,6 +217,10 @@ class Handler {
             } else {
                 $sid = null;
             }
+            if (! isset($data->ua)) {
+                throw new \ExceptionToResponse('Unrecognizable data', '报文无法识别');
+            }
+            \session::getAgentMap()->getAgentId($data->ua);
             if ($flag) {
                 if (! property_exists($data, 'timestamp') || abs($data->timestamp / 1000 - \Time\now()) > 1200 * 3600) {
                     throw new \ExceptionToResponse\TimeTooDifferentException();
@@ -246,11 +246,11 @@ class Handler {
                         } else {
                             $response_string = null;
                         }
+                        \cache::select(1);
                     } catch (\Swango\Cache\RedisErrorException $e) {
                         \cache::select(1);
                         throw $e;
                     }
-                    \cache::select(1);
                     if (isset($response_string) && is_string($response_string)) {
                         $response->header('Access-Control-Allow-Headers',
                             'Rsa-Certificate-Id, Mango-Rsa-Cert, Mango-Request-Rand, Content-Type');
@@ -273,7 +273,7 @@ class Handler {
             }
             \SysContext::set('request_post', $data->data);
             if ($controller::USE_SESSION && ! $controller::START_SESSION_LATER && property_exists($data, 'sid')) {
-                \session::start($request, $response, $sid, $data->ua ?? 'wmp');
+                \session::start($request, $response, $sid, $data->ua);
                 return true;
             } else {
                 return false;

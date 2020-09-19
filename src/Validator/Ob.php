@@ -5,8 +5,12 @@ namespace Swango\HttpServer\Validator;
  * 对象 或 每项含义不同的数组
  */
 class Ob extends \Swango\HttpServer\Validator {
-    private $set_null_when_empty = false;
-    protected $do_not_validate_deeper = false;
+    private bool $set_null_when_empty = false;
+    protected bool $do_not_validate_deeper = false;
+    /**
+     * @var \Swango\HttpServer\Validator[]
+     */
+    protected array $map = [];
     public function getCnMsg(): string {
         if (isset($this->cnmsg)) {
             return $this->cnmsg;
@@ -29,7 +33,7 @@ class Ob extends \Swango\HttpServer\Validator {
     /**
      * 表示可能为null，默认为不能为null
      */
-    public function setNullWhenEmpty() {
+    public function setNullWhenEmpty(): self {
         $this->set_null_when_empty = true;
         return $this;
     }
@@ -44,15 +48,11 @@ class Ob extends \Swango\HttpServer\Validator {
             return;
         }
         if (is_object($value)) {
-            if ($this->couldBeEmpty() && $value == new \stdClass()) {
+            if ($this->couldBeEmpty() && false === current($value)) {
                 $value = null;
                 return;
             }
             foreach ($this->map as $k => $validator) {
-                /**
-                 *
-                 * @var $validator \Swango\HttpServer\Validator
-                 */
                 if (! property_exists($value, $k)) {
                     if ($validator->isOptional()) {
                         continue;
@@ -73,10 +73,6 @@ class Ob extends \Swango\HttpServer\Validator {
                 return;
             }
             foreach ($this->map as $k => $validator) {
-                /**
-                 *
-                 * @var $validator \Swango\HttpServer\Validator
-                 */
                 if (! array_key_exists($k, $value)) {
                     if ($validator->isOptional()) {
                         continue;
@@ -93,7 +89,6 @@ class Ob extends \Swango\HttpServer\Validator {
             unset($v);
         }
     }
-    protected $map = [];
     public function setMap(array $map): self {
         $this->map = $map;
         return $this;
