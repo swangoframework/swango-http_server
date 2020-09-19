@@ -212,12 +212,18 @@ abstract class Controller {
         $this->json_response_code = $code;
         $this->json_response_enmsg = $enmsg;
         $this->json_response_cnmsg = $cnmsg;
-        $echo = \Json::encode([
+        $echo = str_replace([
+            '\\n',
+            '\\r'
+        ], [
+            '\\' . 'n',
+            '\\' . 'r'
+        ], \Json::encode([
             'code' => &$code,
             'enmsg' => &$enmsg,
             'cnmsg' => &$cnmsg,
             'data' => &$data
-        ]);
+        ]));
         if (IS_DEV) {
             $this->swoole_http_response->header('Access-Control-Expose-Headers', 'Mango-Response-Crypt');
             $this->swoole_http_response->header('Access-Control-Allow-Origin', '*');
@@ -231,6 +237,7 @@ abstract class Controller {
                     '1234567890123456'));
                 $this->endRequest($echo);
             } else {
+                $this->swoole_http_response->detach();
                 \Swango\HttpServer::getWorker()->taskwait(pack('CN', 16, $this->swoole_http_response->fd) .
                     $this->encrypt_key . $echo, 5);
             }
@@ -288,18 +295,18 @@ abstract class Controller {
     public function getInputData(): string {
         return $this->swoole_http_request->rawContent();
     }
-    public function setCookie($key, $value, $lifetime = 0, $path = '/'): void {
-        if ($lifetime == 0) {
+    public function setCookie(string $key, string $value, int $lifetime = 0, string $path = '/'): void {
+        if (0 === $lifetime) {
             $expired = 0;
         } else {
             $expired = $this->swoole_http_request->server['request_time'] + $lifetime;
         }
         $this->swoole_http_response->cookie($key, $value, $expired, $path);
     }
-    public function deleteCookie($key, $path = '/'): void {
+    public function deleteCookie(string $key, string $path = '/'): void {
         $this->swoole_http_response->cookie($key, '', \Time\now() - 3600, $path);
     }
-    protected function getAction($classname): string {
+    protected function getAction(string $classname): string {
         return substr($classname, strpos($classname, "\\") + 1);
     }
     protected function redirect(string $path, bool $visible = false) {
