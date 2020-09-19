@@ -42,14 +42,14 @@ class Agent implements AgentMapInterface {
         if (array_key_exists($agent, self::MAP_AGENT_ID)) {
             return self::MAP_AGENT_ID[$agent];
         } else {
-            throw new \Exception('Invalid agent');
+            throw new \Swango\HttpServer\Session\Exception\InvalidAgentException();
         }
     }
     public function getAgent(int $agent_id): string {
         if (array_key_exists($agent_id, self::MAP_ID_AGENT)) {
             return self::MAP_AGENT_ID[$agent_id];
         } else {
-            throw new \Exception('Invalid agent');
+            throw new \Swango\HttpServer\Session\Exception\InvalidAgentException();
         }
     }
     public function getWebAgentId(): int {
