@@ -337,7 +337,7 @@ abstract class Controller {
     protected function E_500(): void {
         $this->swoole_http_response->status(500);
         $this->swoole_http_response->end('<html><head><title>500 Internal Server</title></head><body bgcolor="white"><center><h1>500 Internal Server</h1></center><hr><center>nginx</center></body></html>');
-        $this->json_response_code = 404;
+        $this->json_response_code = 500;
         $this->response_finished = true;
     }
 }

@@ -220,6 +220,11 @@ class Handler {
             if (! isset($data->ua)) {
                 throw new \ExceptionToResponse('Unrecognizable data', '报文无法识别');
             }
+            if (isset($data->v) && preg_match('/[a-zA-Z0-9\.]{1,16}$/', $data->v)) {
+                \SysContext::set('client_version', (string)$data->v);
+            } else {
+                throw new \ExceptionToResponse('Unrecognizable data', '报文无法识别');
+            }
             \session::getAgentMap()->getAgentId($data->ua);
             if ($flag) {
                 if (! property_exists($data, 'timestamp') || abs($data->timestamp / 1000 - \Time\now()) > 1200 * 3600) {
@@ -265,11 +270,6 @@ class Handler {
                     throw new \ExceptionToResponse\DuplicatedRandException($data->rand . '_' . $data->timestamp);
                 }
                 \cache::setex($key, isset($sid) ? (12 * 3600 + 1) : 600, 1);
-            }
-            if (isset($data->v) && preg_match('/[a-zA-Z0-9\.]{1,16}$/', $data->v)) {
-                \SysContext::set('client_version', (string)$data->v);
-            } else {
-                \SysContext::set('client_version', '0.0.0');
             }
             \SysContext::set('request_post', is_array($data->data) ? new \stdClass() : $data->data);
             if ($controller::USE_SESSION && ! $controller::START_SESSION_LATER && property_exists($data, 'sid')) {
