@@ -356,9 +356,9 @@ class HttpServer {
             $certs[$index] = null;
         }
         if ($cmd === 1) {
-            return mangoParseRequest($data, 2, $index, false);
+            return mangoParseRequest($data, $index, false);
         } else {
-            return mangoParseRequestRaw($data, 2, $index, false);
+            return mangoParseRequestRaw($data, $index, false);
         }
     }
     protected function _mangoEncryptResponseBody(int $fd, string &$data) {

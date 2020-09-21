@@ -271,7 +271,7 @@ class Handler {
             } else {
                 \SysContext::set('client_version', '0.0.0');
             }
-            \SysContext::set('request_post', $data->data);
+            \SysContext::set('request_post', is_array($data->data) ? new \stdClass() : $data->data);
             if ($controller::USE_SESSION && ! $controller::START_SESSION_LATER && property_exists($data, 'sid')) {
                 \session::start($request, $response, $sid, $data->ua);
                 return true;

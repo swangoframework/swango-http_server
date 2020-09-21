@@ -18,8 +18,8 @@ abstract class Controller {
      * @var null|int|bool
      */
     private $client_time_difference;
-    public ?string $json_response_enmsg, $json_response_cnmsg;
-    public ?int $json_response_code, $client_request_pack_timestamp = null;
+    public ?string $json_response_enmsg = null, $json_response_cnmsg = null;
+    public ?int $json_response_code = null, $client_request_pack_timestamp = null;
     public ?string $encrypt_key = null;
     public static function getInstance(bool $create_if_not_exists = true): ?Controller {
         $ob = \SysContext::get('controller');
@@ -240,6 +240,10 @@ abstract class Controller {
                 $this->swoole_http_response->detach();
                 \Swango\HttpServer::getWorker()->taskwait(pack('CN', 16, $this->swoole_http_response->fd) .
                     $this->encrypt_key . $echo, 5);
+                $this->response_finished = true;
+                if (! isset($this->json_response_code)) {
+                    $this->json_response_code = 200;
+                }
             }
         } else {
             $this->swoole_http_response->header('Access-Control-Allow-Headers', 'Content-Type, Mango-Request-Rand');
