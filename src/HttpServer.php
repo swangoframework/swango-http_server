@@ -389,6 +389,7 @@ class HttpServer {
             ] = unpack('Nfd', substr($data, 1, 4));
             $data = substr($data, 5);
             $this->_mangoEncryptResponseBody($fd, $data);
+            return '';
         }
     }
     public function onFinish(\Swoole\Server $serv, int $task_id, string $data) {
