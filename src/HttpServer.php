@@ -112,9 +112,13 @@ class HttpServer {
         define('SERVER_TEMP_ID', mt_rand(0, 4294967295));
         $this->swoole_server_config['dispatch_mode'] = 3;
         \Swoole\Runtime::enableCoroutine(true);
-        \Swango\Db\Pool\master::init();
-        \Swango\Db\Pool\slave::init();
-        \Swango\Model\LocalCache::init();
+        if (Environment::getSwangoModuleSeeker()->swangoDbExists()) {
+            \Swango\Db\Pool\master::init();
+            \Swango\Db\Pool\slave::init();
+        }
+        if (Environment::getSwangoModuleSeeker()->swangoModelExists()) {
+            \Swango\Model\LocalCache::init();
+        }
         self::$http_request_counter = new \Swoole\Atomic\Long();
         if (isset($this->swoole_server_config['max_coroutine'])) {
             self::$max_coroutine = $this->swoole_server_config['max_coroutine'];
@@ -213,13 +217,17 @@ class HttpServer {
         \Swango\Cache\RedisPool::initInWorker();
         if ($worker_id === 0) {
             new \Swango\Cache\InternelCmd();
-            // 每隔15分钟进行全服务DbPool计数校对，因为如果有worker非正常退出的情况，会引起该计数错误
-            $this->add_worker_count_to_atomic_timer = \swoole_timer_tick(900000, function (int $timer_id) use ($serv) {
-                \Swango\Db\Pool\master::addWorkerCountToAtomic(true);
-                \Swango\Db\Pool\slave::addWorkerCountToAtomic(true);
-                for ($dst_worker_id = 1; $dst_worker_id < Environment::getServiceConfig()->worker_num; ++$dst_worker_id)
-                    @$serv->sendMessage(pack('n', 3), $dst_worker_id);
-            });
+            if (Environment::getSwangoModuleSeeker()->swangoDbExists()) {
+                // 每隔15分钟进行全服务DbPool计数校对，因为如果有worker非正常退出的情况，会引起该计数错误
+                $this->add_worker_count_to_atomic_timer = \swoole_timer_tick(900000,
+                    function (int $timer_id) use ($serv) {
+                        \Swango\Db\Pool\master::addWorkerCountToAtomic(true);
+                        \Swango\Db\Pool\slave::addWorkerCountToAtomic(true);
+                        for ($dst_worker_id = 1; $dst_worker_id <
+                        Environment::getServiceConfig()->worker_num; ++$dst_worker_id)
+                            @$serv->sendMessage(pack('n', 3), $dst_worker_id);
+                    });
+            }
         }
     }
     public function onAllWorkerStart(\Swoole\Server $serv, int $worker_id): void {
@@ -242,15 +250,17 @@ class HttpServer {
         if (self::getWorkerId() < $this->swoole_server_config['worker_num']) {
             go('Swango\\Cache\\InternelCmd::stopLoop');
         }
-        $pool = \Gateway::getDbPool(\Gateway::MASTER_DB);
-        if (isset($pool)) {
-            $pool->clearQueueAndTimer();
-        }
-        $pool = \Gateway::getDbPool(\Gateway::SLAVE_DB);
-        if (isset($pool)) {
-            $pool->clearQueueAndTimer();
-        }
         \Swango\Cache\RedisPool::clearQueue();
+        if (Environment::getSwangoModuleSeeker()->swangoDbExists()) {
+            $pool = \Gateway::getDbPool(\Gateway::MASTER_DB);
+            if (isset($pool)) {
+                $pool->clearQueueAndTimer();
+            }
+            $pool = \Gateway::getDbPool(\Gateway::SLAVE_DB);
+            if (isset($pool)) {
+                $pool->clearQueueAndTimer();
+            }
+        }
         if (isset($this->add_worker_count_to_atomic_timer)) {
             \swoole_timer_clear($this->add_worker_count_to_atomic_timer);
             unset($this->add_worker_count_to_atomic_timer);
@@ -329,13 +339,17 @@ class HttpServer {
                 $status = \Swoole\Coroutine::stats();
                 $fd = unpack('N', substr($message, 2, 4))[1];
                 self::$terminal_server->sendPipMessageToTerminalWorker($server, $fd, 3,
-                    "$server->worker_http_request_counter-" . \Swango\Db\Pool\master::getWorkerCount() . '-' .
-                    \Swango\Db\Pool\slave::getWorkerCount() . '-' . memory_get_usage() . '-' . memory_get_peak_usage() .
-                    "-{$status['coroutine_num']}-{$status['coroutine_peak_num']}-" . \SysContext::getSize());
+                    "$server->worker_http_request_counter-" .
+                    (Environment::getSwangoModuleSeeker()->swangoDbExists() ? (\Swango\Db\Pool\master::getWorkerCount() .
+                        '-' . \Swango\Db\Pool\slave::getWorkerCount()) : '0-0') . '-' . memory_get_usage() . '-' .
+                    memory_get_peak_usage() . "-{$status['coroutine_num']}-{$status['coroutine_peak_num']}-" .
+                    \SysContext::getSize());
                 break;
             case 3 : // 正在进行DbPool计数校对
-                \Swango\Db\Pool\master::addWorkerCountToAtomic();
-                \Swango\Db\Pool\slave::addWorkerCountToAtomic();
+                if (Environment::getSwangoModuleSeeker()->swangoDbExists()) {
+                    \Swango\Db\Pool\master::addWorkerCountToAtomic();
+                    \Swango\Db\Pool\slave::addWorkerCountToAtomic();
+                }
                 break;
             case 5 : // 执行 gc_collect_cycles() 并回复结果
                 $result = gc_collect_cycles();

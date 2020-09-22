@@ -1,5 +1,6 @@
 <?php
 namespace Swango\HttpServer;
+use Swango\Environment;
 class TerminalServer {
     public static ?string $log_queue_redis_key = 'http_server_log_host_queue';
     private \Swoole\Table $fd_table;
@@ -65,12 +66,21 @@ class TerminalServer {
                 $this->status[$fd]->worker_request_count = [
                     $id => \Swango\HttpServer::getWorker()->worker_http_request_counter
                 ];
-                $this->status[$fd]->worker_master_db_count = [
-                    $id => \Swango\Db\Pool\master::getWorkerCount()
-                ];
-                $this->status[$fd]->worker_slave_db_count = [
-                    $id => \Swango\Db\Pool\slave::getWorkerCount()
-                ];
+                if (Environment::getSwangoModuleSeeker()->swangoDbExists()) {
+                    $this->status[$fd]->worker_master_db_count = [
+                        $id => \Swango\Db\Pool\master::getWorkerCount()
+                    ];
+                    $this->status[$fd]->worker_slave_db_count = [
+                        $id => \Swango\Db\Pool\slave::getWorkerCount()
+                    ];
+                } else {
+                    $this->status[$fd]->worker_master_db_count = [
+                        $id => 0
+                    ];
+                    $this->status[$fd]->worker_slave_db_count = [
+                        $id => 0
+                    ];
+                }
                 $this->status[$fd]->worker_memory_usage = [
                     $id => memory_get_usage()
                 ];
@@ -95,20 +105,22 @@ class TerminalServer {
                 $server->send($fd, "Tcp accept count:   {$stats['accept_count']}\r\n");
                 $server->send($fd, "Tcp close count:    {$stats['close_count']}\r\n");
                 $server->send($fd, 'Http resquest count:' . \Swango\HttpServer::getTotalHttpRequest() . "\r\n");
-                $server->send($fd, "[Model cache (Swoole\\Table) memory size(kb)]\r\n");
-                $data = \Swango\Model\LocalCache::getAllInstanceSizes();
-                if (empty($data)) {
-                    $server->send($fd, "*No model cache created\r\n");
-                } else {
-                    foreach ($data as $key => $memorySize) {
-                        $s = $key . ':';
-                        $l = strlen($key);
-                        if ($l < 19) {
-                            $s .= str_repeat(' ', 19 - $l);
+                if (Environment::getSwangoModuleSeeker()->swangoModelExists()) {
+                    $server->send($fd, "[Model cache (Swoole\\Table) memory size(kb)]\r\n");
+                    $data = \Swango\Model\LocalCache::getAllInstanceSizes();
+                    if (empty($data)) {
+                        $server->send($fd, "*No model cache created\r\n");
+                    } else {
+                        foreach ($data as $key => $memorySize) {
+                            $s = $key . ':';
+                            $l = strlen($key);
+                            if ($l < 19) {
+                                $s .= str_repeat(' ', 19 - $l);
+                            }
+                            $server->send($fd, $s . sprintf("%.2f\r\n", $memorySize / 1024));
                         }
-                        $server->send($fd, $s . sprintf("%.2f\r\n", $memorySize / 1024));
+                        $server->send($fd, sprintf("*Total:             %.2f\r\n", array_sum($data) / 1024));
                     }
-                    $server->send($fd, sprintf("*Total:             %.2f\r\n", array_sum($data) / 1024));
                 }
                 $server->send($fd, "[Each worker status (status worker:{$id})]\r\n");
                 for ($dst_worker_id = 0; $dst_worker_id <
