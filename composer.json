@@ -1,27 +1,26 @@
 {
-	"name" : "swango/http_server",
-	"license" : "Apache-2.0",
-	"keywords" : [
-		"php",
-		"swoole",
-		"http_server"
-	],
-	"require" : {
-		"php" : ">=7.4",
-		"swango/db" : "^1.0",
-		"swango/cache" : "^1.0",
-		"swango/environment" : "^1.0",
-		"swango/stdlib" : "^1.2"
-	},
-	"autoload" : {
-		"psr-4" : {
-			"Swango\\HttpServer\\" : "src",
-			"ExceptionToResponse\\" : "src/ExceptionToResponse"
-		},
-		"classmap" : [
-			"src/HttpServer.php",
-			"src/ExceptionToResponse.php",
-			"src/session.php"
-		]
-	}
+    "name" : "swango/http_server",
+    "license" : "Apache-2.0",
+    "keywords" : [
+        "php",
+        "swoole",
+        "http_server"
+    ],
+    "require" : {
+        "php" : ">=7.4",
+        "swango/cache" : "^1.0",
+        "swango/environment" : "^1.0.16",
+        "swango/stdlib" : "^1.2"
+    },
+    "autoload" : {
+        "psr-4" : {
+            "Swango\\HttpServer\\" : "src",
+            "ExceptionToResponse\\" : "src/ExceptionToResponse"
+        },
+        "classmap" : [
+            "src/HttpServer.php",
+            "src/ExceptionToResponse.php",
+            "src/session.php"
+        ]
+    }
 }
