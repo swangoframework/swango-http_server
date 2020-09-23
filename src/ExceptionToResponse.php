@@ -1,11 +1,5 @@
 <?php
-interface ExceptionToResponseInterface {
-    public function getCnMsg();
-    public function getMessage();
-    public function getCode();
-    public function getData();
-}
-class ExceptionToResponse extends \Exception implements ExceptionToResponseInterface {
+class ExceptionToResponse extends Exception implements ExceptionToResponse\ExceptionToResponseInterface {
     const HEADER_STR = '200 OK';
     private ?string $cnmsg;
     private $data;

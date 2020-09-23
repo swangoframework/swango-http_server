@@ -61,7 +61,7 @@ class Handler {
                 $controller->json_response_enmsg,
                 $controller->json_response_cnmsg
             ];
-        } catch (\ExceptionToResponse $e) {
+        } catch (\ExceptionToResponse\ExceptionToResponseInterface $e) {
             $code = $e->getCode();
             $enmsg = $e->getMessage();
             $cnmsg = $e->getCnMsg();
@@ -103,18 +103,28 @@ class Handler {
             $controller->jsonResponse($data, $enmsg, $cnmsg, $code);
         } else {
             $response->header('Content-Type', 'application/json');
-            $response->end(str_replace('\\n', '\\' . 'n', \Json::encode([
+            $response->end(str_replace([
+                '\\n',
+                '\\r'
+            ], [
+                '\\' . 'n',
+                '\\' . 'r'
+            ], \Json::encode([
                 'code' => $code,
                 'enmsg' => $enmsg,
                 'cnmsg' => $cnmsg,
                 'data' => $data
             ])));
         }
+        $err_msg = $e->getMessage();
+        if ($e instanceof \Swango\Model\Exception\ModelNotFoundException) {
+            $err_msg .= '(' . \Json::encode($e->getIndex()) . ')';
+        }
         \FileLog::logThrowable($e, \Swango\Environment::getDir()->log . 'error/',
             sprintf('%s : %s | %s | %s | %s | ', $request->header['x-forwarded-for'] ?? $request->server['remote_addr'],
-                $e->getMessage(), $cnmsg, ($request->header['host'] ?? '') . $request->server['request_uri'] .
+                $err_msg, $cnmsg, ($request->header['host'] ?? '') . $request->server['request_uri'] .
                 (isset($request->server['query_string']) ? '?' . $request->server['query_string'] : ''),
-                \SysContext::has('request_post') ? json_encode(\SysContext::get('request_post')) : ''));
+                \SysContext::has('request_post') ? \Json::encode(\SysContext::get('request_post')) : ''));
         if (isset($controller)) {
             $controller->rollbackTransaction();
         }
