@@ -118,7 +118,7 @@ class Handler {
         }
         $err_msg = $e->getMessage();
         if ($e instanceof \Swango\Model\Exception\ModelNotFoundException) {
-            $err_msg .= '(' . \Json::encode($e->getIndex()) . ')';
+            $err_msg .= \Json::encode($e->getIndex());
         }
         \FileLog::logThrowable($e, \Swango\Environment::getDir()->log . 'error/',
             sprintf('%s : %s | %s | %s | %s | ', $request->header['x-forwarded-for'] ?? $request->server['remote_addr'],
