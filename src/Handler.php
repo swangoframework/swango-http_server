@@ -295,9 +295,8 @@ class Handler {
     }
     public static function end() {
         \session::end();
-        try {
+        if (Router::exists()) {
             Router::getInstance()->detachSwooleRequest();
-        } catch (\Throwable $e) {
         }
         $controller = Controller::getInstance(false);
         if (isset($controller)) {
