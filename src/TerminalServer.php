@@ -104,7 +104,7 @@ class TerminalServer {
                 $server->send($fd, "Tcp connection num: {$stats['connection_num']}\r\n");
                 $server->send($fd, "Tcp accept count:   {$stats['accept_count']}\r\n");
                 $server->send($fd, "Tcp close count:    {$stats['close_count']}\r\n");
-                $server->send($fd, 'Http resquest count:' . \Swango\HttpServer::getTotalHttpRequest() . "\r\n");
+                $server->send($fd, 'Http request count:' . \Swango\HttpServer::getTotalHttpRequest() . "\r\n");
                 if (Environment::getSwangoModuleSeeker()->swangoModelExists()) {
                     $server->send($fd, "[Model cache (Swoole\\Table) memory size(kb)]\r\n");
                     $data = \Swango\Model\LocalCache::getAllInstanceSizes();
@@ -123,21 +123,22 @@ class TerminalServer {
                     }
                 }
                 $server->send($fd, "[Each worker status (status worker:{$id})]\r\n");
-                for ($dst_worker_id = 0; $dst_worker_id <
-                \Swango\Environment::getServiceConfig()->worker_num; ++$dst_worker_id)
-                    @$server->sendMessage(pack('nN', 2, $fd), $dst_worker_id);
+                for ($dst_worker_id = 0; $dst_worker_id < Environment::getServiceConfig()->worker_num; ++$dst_worker_id)
+                    if ($id === $dst_worker_id) {
+                        $this->onPipeMessage($server, $id, pack('Nn', $fd, 3));
+                    } else {
+                        $server->sendMessage(pack('nN', 2, $fd), $dst_worker_id);
+                    }
                 break;
             case 'gcmem' :
                 $result = gc_collect_cycles();
                 $this->gc_collect_cycles_result[$fd] = [
                     \Swango\HttpServer::getWorkerId() => $result
                 ];
-                for ($dst_worker_id = 0; $dst_worker_id <
-                \Swango\Environment::getServiceConfig()->worker_num; ++$dst_worker_id)
-                    @$server->sendMessage(pack('nN', 5, $fd), $dst_worker_id);
+                for ($dst_worker_id = 0; $dst_worker_id < Environment::getServiceConfig()->worker_num; ++$dst_worker_id)
+                    $server->sendMessage(pack('nN', 5, $fd), $dst_worker_id);
                 // 各个进程可能先一步执行完，所以这里也要判断一下
-                if (count($this->gc_collect_cycles_result[$fd]) ===
-                    \Swango\Environment::getServiceConfig()->worker_num) {
+                if (count($this->gc_collect_cycles_result[$fd]) === Environment::getServiceConfig()->worker_num) {
                     ksort($this->gc_collect_cycles_result[$fd]);
                     $server->send($fd, 'Collect cycles: ' . implode(' ', $this->gc_collect_cycles_result[$fd]) . ' (' .
                         array_sum($this->gc_collect_cycles_result[$fd]) . ")\r\n");
@@ -176,18 +177,19 @@ class TerminalServer {
                 $this->close($fd);
                 break;
             case 3 :
-                [
-                    $this->status[$fd]->worker_request_count[$src_worker_id],
-                    $this->status[$fd]->worker_master_db_count[$src_worker_id],
-                    $this->status[$fd]->worker_slave_db_count[$src_worker_id],
-                    $this->status[$fd]->worker_memory_usage[$src_worker_id],
-                    $this->status[$fd]->worker_memory_peak_usage[$src_worker_id],
-                    $this->status[$fd]->coroutine_num[$src_worker_id],
-                    $this->status[$fd]->coroutine_peak_num[$src_worker_id],
-                    $this->status[$fd]->context_size[$src_worker_id]
-                ] = explode('-', $message);
-                if (count($this->status[$fd]->worker_request_count) ===
-                    \Swango\Environment::getServiceConfig()->worker_num) {
+                if ($src_worker_id !== \Swango\HttpServer::getWorkerId()) {
+                    [
+                        $this->status[$fd]->worker_request_count[$src_worker_id],
+                        $this->status[$fd]->worker_master_db_count[$src_worker_id],
+                        $this->status[$fd]->worker_slave_db_count[$src_worker_id],
+                        $this->status[$fd]->worker_memory_usage[$src_worker_id],
+                        $this->status[$fd]->worker_memory_peak_usage[$src_worker_id],
+                        $this->status[$fd]->coroutine_num[$src_worker_id],
+                        $this->status[$fd]->coroutine_peak_num[$src_worker_id],
+                        $this->status[$fd]->context_size[$src_worker_id]
+                    ] = explode('-', $message);
+                }
+                if (count($this->status[$fd]->worker_request_count) === Environment::getServiceConfig()->worker_num) {
                     ksort($this->status[$fd]->worker_request_count);
                     ksort($this->status[$fd]->worker_master_db_count);
                     ksort($this->status[$fd]->worker_slave_db_count);
@@ -311,7 +313,7 @@ class TerminalServer {
     public function notifyLogQueue() {
         if (null !== self::$log_queue_redis_key) {
             \cache::select(1);
-            \cache::lPush(self::$log_queue_redis_key, \Swango\Environment::getServiceConfig()->local_ip);
+            \cache::lPush(self::$log_queue_redis_key, Environment::getServiceConfig()->local_ip);
         }
     }
 }
