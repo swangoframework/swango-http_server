@@ -156,7 +156,6 @@ class HttpServer {
         }
         posix_kill($pid, SIGTERM);
         echo "Stopping\n";
-        sleep(1);
         return true;
     }
     public function reload(): void {
