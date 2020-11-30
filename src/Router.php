@@ -113,11 +113,12 @@ class Router {
                 $par[] = array_pop($action);
                 continue;
             }
-            $classname = '\\Controller\\' . strtolower(implode('\\', $action)) . '\\' . $this->method . $v;
+            $classname = '\\Controller\\' . (empty($action) ? '' : strtolower(implode('\\', $action)) . '\\') .
+                $this->method . $v;
             $class_exists = class_exists($classname, false);
             if (! $class_exists) {
-                $file_name = Environment::getDir()->controller . strtolower(implode('/', $action)) . '/' .
-                    $this->method . $v . '.php';
+                $file_name = Environment::getDir()->controller .
+                    (empty($action) ? '' : strtolower(implode('/', $action)) . '/') . $this->method . $v . '.php';
                 if (file_exists($file_name)) {
                     require_once $file_name;
                     $class_exists = class_exists($classname, false);
