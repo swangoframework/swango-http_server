@@ -37,7 +37,7 @@ class Router {
     protected ?int $version;
     protected ?\Swoole\Http\Request $request;
     protected function __construct(string $uri, string $method, ?int $version) {
-        $action = explode('/', strtolower($uri));
+        $action = explode('/', $uri);
         array_shift($action);
         if ('' === end($action)) {
             array_pop($action);
@@ -64,7 +64,7 @@ class Router {
         return $this->controller_name;
     }
     public function isWebhook(): bool {
-        $action1 = reset($this->action);
+        $action1 = strtolower(reset($this->action));
         return 'webhook' === $action1 || 'server' === $action1 || 'service' === $action1;
     }
     public function getHost(): string {
@@ -92,7 +92,7 @@ class Router {
         $par = [];
         $action = $this->action;
         do {
-            $controller_name = '/' . implode('/', $action);
+            $controller_name = '/' . strtolower(implode('/', $action));
             $cache_key = self::getCacheKey($controller_name, $this->method, $this->version, count($par));
             if (array_key_exists($cache_key, self::$cache)) {
                 $classname = self::$cache[$cache_key];
@@ -113,31 +113,24 @@ class Router {
                 $par[] = array_pop($action);
                 continue;
             }
-            $tmp = $action;
-            $tmp[] = $this->method . $v;
-            $classname = '\\Controller\\' . implode('\\', $tmp);
+            $classname = '\\Controller\\' . strtolower(implode('\\', $action)) . '\\' . $this->method . $v;
             $class_exists = class_exists($classname, false);
             if (! $class_exists) {
-                $file_name = Environment::getDir()->controller . implode('/', $tmp) . '.php';
+                $file_name = Environment::getDir()->controller . strtolower(implode('/', $action)) . '/' .
+                    $this->method . $v . '.php';
                 if (file_exists($file_name)) {
                     require_once $file_name;
                     $class_exists = class_exists($classname, false);
                 }
             }
-            if (! $class_exists) {
-                if (empty($action)) {
-                    break;
-                }
-                $par[] = array_pop($action);
-                continue;
-            } elseif ((! empty($par) && ! $classname::WITH_PAR)) {
+            if ((! $class_exists) || (! empty($par) && ! $classname::WITH_PAR)) {
                 if (empty($action)) {
                     break;
                 }
                 $par[] = array_pop($action);
                 continue;
             }
-            $controller_name = '/' . implode('/', $action);
+            $controller_name = '/' . strtolower(implode('/', $action));
             $this->controller_name = $controller_name;
             if ($classname::USE_ROUTER_CACHE) {
                 $cache_key = self::getCacheKey($controller_name, $this->method, $this->version, count($par));
