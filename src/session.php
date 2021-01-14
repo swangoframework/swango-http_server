@@ -2,7 +2,7 @@
 class session {
     const LIFETIME = 1209600; // 14天
     const SESSION_NAME = 'sid', SESSION_ID_LENGTH = 32;
-    private static $init_keys = [];
+    private static array $init_keys = [];
     private static $sid_generator = null;
     private static Swango\HttpServer\Session\AgentMapInterface $agent_map;
     public static function systemSetInitKeys(string ...$keys): void {

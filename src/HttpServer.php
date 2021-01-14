@@ -22,8 +22,10 @@ class HttpServer {
     public static function isStopping(): bool {
         return self::$is_stopping;
     }
-    protected $server, $daemonize, $callback;
-    protected $swoole_server_config = [
+    protected \Swoole\Http\Server $server;
+    protected bool $daemonize;
+    protected array $callback;
+    protected array $swoole_server_config = [
         'reactor_num' => 4,
         // reactor thread num
         'worker_num' => 8,
@@ -124,7 +126,7 @@ class HttpServer {
             self::$max_coroutine = $this->swoole_server_config['max_coroutine'];
         }
     }
-    public function start($daemonize = false): void {
+    public function start(bool $daemonize = false): void {
         if ($this->getPid() !== null) {
             exit("Already running\n");
         }
@@ -230,9 +232,6 @@ class HttpServer {
         }
     }
     public function onAllWorkerStart(\Swoole\Server $serv, int $worker_id): void {
-        if (function_exists('opcache_reset')) {
-            opcache_reset();
-        }
         mt_srand((int)(microtime(true) * 10000) * 100 + $worker_id);
         self::$worker = $serv;
         self::$worker_id = $worker_id;
@@ -328,7 +327,7 @@ class HttpServer {
             self::$terminal_server->send($request_string . ' ==> ' . $response_string, 2);
         }
     }
-    public function onPipeMessage(\Swoole\Server $server, int $src_worker_id, $message) {
+    public function onPipeMessage(\Swoole\Server $server, int $src_worker_id, string $message): void {
         $cmd = unpack('n', substr($message, 0, 2))[1];
         switch ($cmd) {
             case 1 : // 需要交给 TerminalServer 处理
@@ -357,7 +356,7 @@ class HttpServer {
                 break;
         }
     }
-    protected function _mangoParseRequestBody(int $cmd, int $index, string &$data) {
+    protected function _mangoParseRequestBody(int $cmd, int $index, string &$data): int|string {
         static $certs = [];
         if (! array_key_exists($index, $certs)) {
             $certname = Environment::getDir()->data . 'cert/rsa_private_key_' . $index . '.pem';
@@ -374,7 +373,7 @@ class HttpServer {
             return mangoParseRequestRaw($data, $index, false);
         }
     }
-    protected function _mangoEncryptResponseBody(int $fd, string &$data) {
+    protected function _mangoEncryptResponseBody(int $fd, string &$data): void {
         $resp = \Swoole\Http\Response::create($fd);
         if ($resp instanceof \Swoole\Http\Response) {
             $encrypt_key = substr($data, 0, 16);
@@ -386,7 +385,7 @@ class HttpServer {
                 '1234567890123456')));
         }
     }
-    public function onTask(\Swoole\Server $serv, int $task_id, int $src_worker_id, $data) {
+    public function onTask(\Swoole\Server $serv, int $task_id, int $src_worker_id, $data): ?string {
         [
             'cmd' => $cmd
         ] = unpack('Ccmd', $data[0]);
@@ -404,6 +403,7 @@ class HttpServer {
             $this->_mangoEncryptResponseBody($fd, $data);
             return '';
         }
+        return null;
     }
     public function onFinish(\Swoole\Server $serv, int $task_id, string $data) {
     }

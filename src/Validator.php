@@ -12,29 +12,21 @@ abstract class Validator {
     /**
      * 设置为非必须项
      */
-    public function optional() {
+    public function optional(): self {
         $this->optional = true;
         return $this;
     }
-    /**
-     *
-     * @return boolean
-     */
-    public function isOptional() {
+    public function isOptional(): bool {
         return $this->optional;
     }
     /**
      * 表示可能为null，默认为不能为null
      */
-    public function null() {
+    public function null(): self {
         $this->could_be_null = true;
         return $this;
     }
-    /**
-     *
-     * @return boolean
-     */
-    public function couldBeNull() {
+    public function couldBeNull(): bool {
         return $this->could_be_null;
     }
     public function setCnMsg($cnmsg) {

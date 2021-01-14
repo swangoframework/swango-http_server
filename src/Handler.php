@@ -293,7 +293,7 @@ class Handler {
         }
         return false;
     }
-    public static function end() {
+    public static function end(): void {
         \session::end();
         if (Router::exists()) {
             Router::getInstance()->detachSwooleRequest();
