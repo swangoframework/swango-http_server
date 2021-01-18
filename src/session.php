@@ -34,11 +34,9 @@ class session {
         $time = (string)intval(microtime(true) * 10000);
         $tmp_string = base_convert($agent + 10, 10, 36);
         $tmp_string .= base_convert($time, 10, 36);
-        $tmp_string .= substr(base_convert(crc32(SysContext::get('request_id')), 10, 36), 1);
-        $sid = strtolower($tmp_string .
-            XString\GenerateRandomString(self::SESSION_ID_LENGTH - 3 - strlen($tmp_string)));
-        $crc = strtolower(substr(base_convert(crc16($sid), 10, 36), 1));
-        $crc = str_repeat('0', 3 - strlen($crc)) . $crc;
+        $sid = strtolower($tmp_string . XString\GenerateRandomString(32 - 5 - strlen($tmp_string)));
+        $crc = substr(base_convert(crc32($sid), 10, 36), 1);
+        $crc = str_repeat('0', 5 - strlen($crc)) . $crc;
         return $sid . $crc;
     }
     public static function getAgentMap(): Swango\HttpServer\Session\AgentMapInterface {
