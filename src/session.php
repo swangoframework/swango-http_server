@@ -138,7 +138,7 @@ class session {
             cache::select(1);
             throw $e;
         }
-        if (! is_array($session_string)) {
+        if (! is_string($session_string)) {
             throw new Swango\HttpServer\Session\Exception\SessionNotExistsException();
         }
         $session_array = unpack('Jauth/Cagent/Nuid/Ntime', $session_string);
