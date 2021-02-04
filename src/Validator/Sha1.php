@@ -18,6 +18,11 @@ class Sha1 extends \Swango\HttpServer\Validator {
         if (is_array($value) || is_object($value))
             throw new \ExceptionToResponse\InvalidParameterException('Invalid ' . $key, $this->getCnMsg());
         $value = (string)$value;
+        $value = str_replace([
+            "\x08",
+            "\x7F"
+        ], '', $value); // x08为退格字符 x7f为DEL字符
+        $value = trim($value);
         if (! preg_match("/[0-9a-fA-F]{40}$/", $value))
             throw new \ExceptionToResponse\InvalidParameterException('Invalid ' . $key, $this->getCnMsg());
     }
