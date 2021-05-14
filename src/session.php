@@ -96,6 +96,13 @@ class session {
                 return;
             }
         } else {
+            if (! isset($agent)) {
+                if (isset($request->header['user-agent'])) {
+                    $agent = self::getAgentMap()->getAgentFromUserAgent($request->header['user-agent']);
+                } else {
+                    $agent = self::getAgentMap()->getWebAgentId();
+                }
+            }
             $sid = self::generateSid($agent);
         }
         if (! isset($ob)) {
