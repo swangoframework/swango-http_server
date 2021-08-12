@@ -10,14 +10,6 @@ class Handler {
         try {
             $router = Router::getInstance($request);
             if ($router->getMethod() === 'OPTIONS') {
-                $response->header('Allow', 'OPTIONS, GET, HEAD, POST');
-                $response->header('Access-Control-Allow-Methods', 'OPTIONS, GET, HEAD, POST');
-                $response->header('Access-Control-Allow-Headers',
-                    'Rsa-Certificate-Id, Mango-Rsa-Cert, Mango-Request-Rand, Content-Type');
-                $response->header('Access-Control-Expose-Headers', 'Mango-Response-Crypt');
-                if (IS_DEV) {
-                    $response->header('Access-Control-Allow-Origin', '*');
-                }
                 $response->end('');
                 return [
                     200,
@@ -145,7 +137,8 @@ class Handler {
      * @throws \ExceptionToResponse\DuplicatedRandException
      * @throws \Exception
      */
-    private static function parseRequest(\Swoole\Http\Request $request, \Swoole\Http\Response $response, Controller $controller): ?bool {
+    private static function parseRequest(\Swoole\Http\Request $request, \Swoole\Http\Response $response,
+                                         Controller $controller): ?bool {
         $inputcontent = $request->rawContent();
         if ($inputcontent) {
             $server_info = $request->header;
@@ -270,10 +263,6 @@ class Handler {
                         $response->header('Access-Control-Allow-Headers',
                             'Rsa-Certificate-Id, Mango-Rsa-Cert, Mango-Request-Rand, Content-Type');
                         $response->header('Mango-Response-Crypt', 'On');
-                        if (IS_DEV) {
-                            $response->header('Access-Control-Expose-Headers', 'Mango-Response-Crypt');
-                            $response->header('Access-Control-Allow-Origin', '*');
-                        }
                         $controller->endRequest($response_string);
                         return null;
                     }

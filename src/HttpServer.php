@@ -378,9 +378,6 @@ class HttpServer {
         if ($resp instanceof \Swoole\Http\Response) {
             $encrypt_key = substr($data, 0, 16);
             $body = substr($data, 16);
-            $resp->header('Access-Control-Allow-Headers',
-                'Rsa-Certificate-Id, Mango-Rsa-Cert, Mango-Request-Rand, Content-Type');
-            $resp->header('Mango-Response-Crypt', 'On');
             $resp->end(base64_encode(openssl_encrypt($body, 'aes-128-cbc', $encrypt_key, OPENSSL_RAW_DATA,
                 '1234567890123456')));
         }

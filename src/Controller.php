@@ -224,14 +224,8 @@ abstract class Controller {
             'cnmsg' => &$cnmsg,
             'data' => &$data
         ]));
-        if (IS_DEV) {
-            $this->swoole_http_response->header('Access-Control-Expose-Headers', 'Mango-Response-Crypt');
-            $this->swoole_http_response->header('Access-Control-Allow-Origin', '*');
-        }
         if (isset($this->encrypt_key)) {
             if (strlen($echo) < 256) {
-                $this->swoole_http_response->header('Access-Control-Allow-Headers',
-                    'Rsa-Certificate-Id, Mango-Rsa-Cert, Mango-Request-Rand, Content-Type');
                 $this->swoole_http_response->header('Mango-Response-Crypt', 'On');
                 $echo = base64_encode(openssl_encrypt($echo, 'aes-128-cbc', $this->encrypt_key, OPENSSL_RAW_DATA,
                     '1234567890123456'));
@@ -246,7 +240,6 @@ abstract class Controller {
                 }
             }
         } else {
-            $this->swoole_http_response->header('Access-Control-Allow-Headers', 'Content-Type, Mango-Request-Rand');
             $this->swoole_http_response->header('Content-Type', 'application/json');
             $this->endRequest($echo);
         }
@@ -265,7 +258,8 @@ abstract class Controller {
             }
         }
     }
-    public function jsonResponse(?array $data = null, ?string $enmsg = 'ok', ?string $cnmsg = '成功', int $code = 200): void {
+    public function jsonResponse(?array $data = null, ?string $enmsg = 'ok', ?string $cnmsg = '成功',
+                                 int $code = 200): void {
         if ($this->response_finished) {
             return;
         }
@@ -313,7 +307,42 @@ abstract class Controller {
     protected function getAction(string $classname): string {
         return substr($classname, strpos($classname, "\\") + 1);
     }
-    protected function redirect(string $path, bool $visible = false) {
+    protected function renderTemplate(string $template, array $variable = [],
+                                      ?string $content_type = 'text/html; charset=UTF-8',
+                                      ?string $cache_control = 'no-store'): void {
+        if ($this->response_finished) {
+            return;
+        }
+        if (! file_exists($template)) {
+            $this->E_404();
+            return;
+        }
+        foreach ($variable as $k => &$v)
+            ${$k} = $v;
+        unset($v);
+        ob_start();
+        try {
+            include $template;
+            $content = ob_get_clean();
+            if (false === $content) {
+                throw new \Exception('Output buffering not active');
+            }
+            if (isset($content_type)) {
+                $this->swoole_http_response->header('Content-Type', $content_type);
+            }
+            if (isset($cache_control)) {
+                $this->swoole_http_response->header('Cache-Control', $cache_control);
+            }
+            $this->swoole_http_response->end($content);
+            $this->response_finished = true;
+            $this->json_response_code ??= 200;
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            $this->E_500();
+            throw $e;
+        }
+    }
+    protected function redirect(string $path, bool $visible = false): bool {
         if ($this->response_finished) {
             return false;
         }
@@ -336,7 +365,7 @@ abstract class Controller {
     }
     protected function E_500(): void {
         $this->swoole_http_response->status(500);
-        $this->swoole_http_response->end('<html><head><title>500 Internal Server</title></head><body bgcolor="white"><center><h1>500 Internal Server</h1></center><hr><center>nginx</center></body></html>');
+        $this->swoole_http_response->end('<html><head><title>500 Internal Server Error</title></head><body bgcolor="white"><center><h1>500 Internal Server Error</h1></center><hr><center>nginx</center></body></html>');
         $this->json_response_code = 500;
         $this->response_finished = true;
     }
