@@ -70,7 +70,7 @@ abstract class Controller {
     }
     public function getClientIp(): string {
         if (isset($this->swoole_http_request->header['x-forwarded-for'])) {
-            return current(explode(', ', $this->swoole_http_request->header['x-forwarded-for']));
+            return trim(current(explode(',', $this->swoole_http_request->header['x-forwarded-for'])));
         }
         return $this->swoole_http_request->server['remote_addr'];
     }
