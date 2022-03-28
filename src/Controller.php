@@ -5,6 +5,15 @@ namespace Swango\HttpServer;
  * @author fdream
  */
 abstract class Controller {
+    private static int $max_record_response_data_length;
+    /**
+     * response data will be stored in SysContext::get('response_data_to_log')
+     * @param int $max_length
+     * @return void
+     */
+    public static function setRecordResponseData(int $max_length): void {
+        self::$max_record_response_data_length = $max_length;
+    }
     const WITH_PAR = false, USE_SESSION = true, START_SESSION_LATER = false, USE_ROUTER_CACHE = true;
     protected ?Validator $par_validate, $get_validate, $post_validate;
     protected ?\Swoole\Http\Request $swoole_http_request;
@@ -208,22 +217,49 @@ abstract class Controller {
         }
         return true;
     }
-    protected function echoJson(int $code, string $enmsg, ?string $cnmsg, $data): void {
+    protected function echoJson(int $code, string $enmsg, ?string $cnmsg, mixed $data): void {
         $this->json_response_code = $code;
         $this->json_response_enmsg = $enmsg;
         $this->json_response_cnmsg = $cnmsg;
-        $echo = str_replace([
-            '\\n',
-            '\\r'
-        ], [
-            '\\' . 'n',
-            '\\' . 'r'
-        ], \Json::encode([
-            'code' => &$code,
-            'enmsg' => &$enmsg,
-            'cnmsg' => &$cnmsg,
-            'data' => &$data
-        ]));
+
+        if (isset(self::$max_record_response_data_length)) {
+            $data = str_replace([
+                '\\n',
+                '\\r'
+            ], [
+                '\\' . 'n',
+                '\\' . 'r'
+            ], json_encode($data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP));
+            $echo = sprintf('{"code":%d,"enmsg":%s,"cnmsg":%s,"data":%s}', $code, str_replace([
+                '\\n',
+                '\\r'
+            ], [
+                '\\' . 'n',
+                '\\' . 'r'
+            ], \Json::encode($enmsg)), str_replace([
+                '\\n',
+                '\\r'
+            ], [
+                '\\' . 'n',
+                '\\' . 'r'
+            ], \Json::encode($cnmsg)), $data);
+            if (strlen($data) <= self::$max_record_response_data_length) {
+                \SysContext::set('response_data_to_log', $data);
+            }
+        } else {
+            $echo = str_replace([
+                '\\n',
+                '\\r'
+            ], [
+                '\\' . 'n',
+                '\\' . 'r'
+            ], json_encode([
+                'code' => &$code,
+                'enmsg' => &$enmsg,
+                'cnmsg' => &$cnmsg,
+                'data' => &$data
+            ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP));
+        }
         if (isset($this->encrypt_key)) {
             if (strlen($echo) < 256) {
                 $this->swoole_http_response->header('Mango-Response-Crypt', 'On');
@@ -259,7 +295,7 @@ abstract class Controller {
         }
     }
     public function jsonResponse(?array $data = null, ?string $enmsg = 'ok', ?string $cnmsg = '成功',
-                                 int $code = 200): void {
+                                 int    $code = 200): void {
         if ($this->response_finished) {
             return;
         }
@@ -307,7 +343,7 @@ abstract class Controller {
     protected function getAction(string $classname): string {
         return substr($classname, strpos($classname, "\\") + 1);
     }
-    protected function renderTemplate(string $template, array $variable = [],
+    protected function renderTemplate(string  $template, array $variable = [],
                                       ?string $content_type = 'text/html; charset=UTF-8',
                                       ?string $cache_control = 'no-store'): void {
         if ($this->response_finished) {
