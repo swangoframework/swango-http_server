@@ -243,7 +243,7 @@ class HttpServer {
             @cli_set_process_title(Environment::getName() . ' task ' . $worker_id);
         }
     }
-    private function recycle(): void {
+    protected function recycle(): void {
         self::$is_stopping = true;
         if (self::getWorkerId() < $this->swoole_server_config['worker_num']) {
             go('Swango\\Cache\\InternelCmd::stopLoop');
