@@ -1,16 +1,21 @@
 <?php
 namespace Swango\HttpServer\Validator;
 class Enum extends \Swango\HttpServer\Validator {
-    private $enum, $all_string;
+    private array $enum;
+    private bool $all_string;
     public function __construct($cnkey, array $enum) {
         parent::__construct($cnkey);
         $this->enum = $enum;
         $this->all_string = true;
-        foreach ($enum as $item)
+        foreach ($enum as $item) {
+            if ($item instanceof \BackedEnum) {
+                $item = $item->value;
+            }
             if (! is_string($item) && ! is_numeric($item)) {
                 $this->all_string = false;
                 break;
             }
+        }
     }
     public function getCnMsg(): string {
         if (isset($this->cnmsg))
