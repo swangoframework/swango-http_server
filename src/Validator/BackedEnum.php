@@ -1,17 +1,22 @@
 <?php
 namespace Swango\HttpServer\Validator;
 class BackedEnum extends \Swango\HttpServer\Validator {
-    public function __construct($cnkey, protected string $enum_class) {
+    public function __construct($cnkey, protected string $enum_class, protected ?array $valid_array = null) {
         parent::__construct($cnkey);
     }
     public function getCnMsg(): string {
         if (isset($this->cnmsg)) {
             return $this->cnmsg;
         }
-        $enum = [];
-        foreach (($this->enum_class)::cases() as $case)
-            $enum[] = $case->value;
-        $ret = $this->cnkey . '必须为(' . implode(',', $enum) . ')中的一项';
+        $enums = [];
+        if (isset($this->valid_array)) {
+            foreach ($this->valid_array as $case)
+                $enums[] = $case->value;
+        } else {
+            foreach (($this->enum_class)::cases() as $case)
+                $enums[] = $case->value;
+        }
+        $ret = $this->cnkey . '必须为(' . implode(',', $enums) . ')中的一项';
         if (! $this->isOptional() || ! $this->couldBeNull()) {
             $ret .= '且不可缺省';
         }
@@ -23,6 +28,9 @@ class BackedEnum extends \Swango\HttpServer\Validator {
         }
         $value = ($this->enum_class)::tryFrom($value);
         if (! isset($value)) {
+            throw new \ExceptionToResponse\InvalidParameterException('Invalid ' . $key, $this->getCnMsg());
+        }
+        if (isset($this->valid_array) && ! in_array($value, $this->valid_array)) {
             throw new \ExceptionToResponse\InvalidParameterException('Invalid ' . $key, $this->getCnMsg());
         }
     }
