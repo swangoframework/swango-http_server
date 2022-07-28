@@ -30,6 +30,12 @@ class Ob extends \Swango\HttpServer\Validator {
     public function __set(string $key, \Swango\HttpServer\Validator $value) {
         $this->map[$key] = $value;
     }
+    public function __unset(string $key) {
+        unset($this->map[$key]);
+    }
+    public function __isset(string $key): bool {
+        return isset($this->map[$key]);
+    }
     /**
      * 表示可能为null，默认为不能为null
      */
