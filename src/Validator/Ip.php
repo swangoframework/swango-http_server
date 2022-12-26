@@ -1,5 +1,8 @@
 <?php
 namespace Swango\HttpServer\Validator;
+/**
+ * @method static getInstance(?string $cnkey)
+ */
 class Ip extends \Swango\HttpServer\Validator {
     private $min_length, $max_length;
     public function getCnMsg(): string {

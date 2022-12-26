@@ -1,5 +1,8 @@
 <?php
 namespace Swango\HttpServer\Validator;
+/**
+ * @method static getInstance(string $cnkey = 'uuid')
+ */
 class UUIdValidator extends \Swango\HttpServer\Validator\AnyString {
     public function __construct(string $cnkey = 'uuid') {
         parent::__construct($cnkey, 36, 36);

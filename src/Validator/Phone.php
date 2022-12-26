@@ -1,5 +1,8 @@
 <?php
 namespace Swango\HttpServer\Validator;
+/**
+ * @method static getInstance(?string $key = null)
+ */
 class Phone extends Integer {
     public function __construct(?string $key = null) {
         parent::__construct($key ?? '手机号', 13000000000, 19999999999);

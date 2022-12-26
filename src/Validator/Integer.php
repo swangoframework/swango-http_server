@@ -1,5 +1,8 @@
 <?php
 namespace Swango\HttpServer\Validator;
+/**
+ * @method static getInstance(?string $cnkey, int $min = 0, int $max = 2147483647)
+ */
 class Integer extends \Swango\HttpServer\Validator {
     protected int $min, $max;
     public function __construct(?string $cnkey, int $min = 0, int $max = 2147483647) {

@@ -1,5 +1,8 @@
 <?php
 namespace Swango\HttpServer\Validator;
+/**
+ * @method static getInstance()
+ */
 class COI extends Varchar {
     public function __construct() {
         parent::__construct('身份证号', 18, 18);

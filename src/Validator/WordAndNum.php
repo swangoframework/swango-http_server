@@ -1,5 +1,8 @@
 <?php
 namespace Swango\HttpServer\Validator;
+/**
+ * @method static getInstance(?string $cnkey, int $min_length = 0, int $max_length = 4096)
+ */
 class WordAndNum extends \Swango\HttpServer\Validator {
     private int $min_length, $max_length;
     public function __construct(?string $cnkey, int $min_length = 0, int $max_length = 4096) {

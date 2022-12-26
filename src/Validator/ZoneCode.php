@@ -1,5 +1,8 @@
 <?php
 namespace Swango\HttpServer\Validator;
+/**
+ * @method static getInstance()
+ */
 class ZoneCode extends Integer {
     public function __construct() {
         parent::__construct('地区码', 1000, 9032);

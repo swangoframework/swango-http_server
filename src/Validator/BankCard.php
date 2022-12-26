@@ -1,5 +1,8 @@
 <?php
 namespace Swango\HttpServer\Validator;
+/**
+ * @method static getInstance()
+ */
 class BankCard extends Varchar {
     public function __construct() {
         parent::__construct('银行卡号', 15, 19);

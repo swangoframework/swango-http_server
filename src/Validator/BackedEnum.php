@@ -1,5 +1,8 @@
 <?php
 namespace Swango\HttpServer\Validator;
+/**
+ * @method static getInstance($cnkey, string $enum_class, ?array $valid_array = null)
+ */
 class BackedEnum extends \Swango\HttpServer\Validator {
     public function __construct($cnkey, protected string $enum_class, protected ?array $valid_array = null) {
         parent::__construct($cnkey);

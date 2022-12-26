@@ -3,6 +3,7 @@ namespace Swango\HttpServer\Validator;
 
 /**
  * 用于检测每项含义都相同的数组
+ * @method static getInstance($cnkey, int $min_length = 0, int $max_length = 4096)
  */
 class FixedArray extends \Swango\HttpServer\Validator {
     private \Swango\HttpServer\Validator $content_validator;

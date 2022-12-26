@@ -9,6 +9,9 @@ abstract class Validator {
         $this->cnkey = $cnkey ?? '';
         $this->validate_function = new \SplQueue();
     }
+    public static function getInstance(...$params): static {
+        return new static(...$params);
+    }
     /**
      * 设置为非必须项
      */

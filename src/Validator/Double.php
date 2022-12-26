@@ -1,5 +1,8 @@
 <?php
 namespace Swango\HttpServer\Validator;
+/**
+ * @method static getInstance(?string $cnkey, ?int $decimal = null, float $min = 0.0, float $max = 2147483647.0)
+ */
 class Double extends \Swango\HttpServer\Validator {
     private ?int $decimal;
     private float $min, $max;

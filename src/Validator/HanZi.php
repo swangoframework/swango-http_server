@@ -1,5 +1,8 @@
 <?php
 namespace Swango\HttpServer\Validator;
+/**
+ * @method static getInstance($cnkey, $min_length = 0, $max_length = 4096)
+ */
 class HanZi extends Varchar {
     public function __construct($cnkey, $min_length = 0, $max_length = 4096) {
         parent::__construct($cnkey, $min_length, $max_length, false);

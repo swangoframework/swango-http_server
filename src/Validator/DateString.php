@@ -1,5 +1,8 @@
 <?php
 namespace Swango\HttpServer\Validator;
+/**
+ * @method static getInstance(string $key)
+ */
 class DateString extends Varchar {
     public function __construct(string $key) {
         parent::__construct($key, 8, 10);
