@@ -3,7 +3,7 @@ namespace Swango\HttpServer\Validator;
 /**
  * 用于检验
  * 对象 或 每项含义不同的数组
- * @method static getInstance(?string $cnkey)
+ * @method static Ob getInstance(?string $cnkey)
  */
 class Ob extends \Swango\HttpServer\Validator {
     private bool $set_null_when_empty = false;

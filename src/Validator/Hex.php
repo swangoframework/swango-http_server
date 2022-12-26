@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance($cnkey, $min_length = 0, $max_length = 4096)
+ * @method static Hex getInstance($cnkey, $min_length = 0, $max_length = 4096)
  */
 class Hex extends \Swango\HttpServer\Validator {
     private $min_length, $max_length;

@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance(?string $key = null)
+ * @method static Url getInstance(?string $key = null)
  */
 class Url extends Anything {
     public function __construct(?string $key = null) {

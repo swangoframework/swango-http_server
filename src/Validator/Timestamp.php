@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance($cnkey, $from = null, $to = null)
+ * @method static Timestamp getInstance($cnkey, $from = null, $to = null)
  */
 class Timestamp extends Integer {
     public function __construct($cnkey, $from = null, $to = null) {

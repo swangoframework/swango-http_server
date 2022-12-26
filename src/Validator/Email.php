@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance(?string $cnkey)
+ * @method static Email getInstance(?string $cnkey)
  */
 class Email extends \Swango\HttpServer\Validator {
     public function getCnMsg(): string {

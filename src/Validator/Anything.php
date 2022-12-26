@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance(?string $key, &$value)
+ * @method static Anything getInstance(?string $key, &$value)
  */
 class Anything extends \Swango\HttpServer\Validator {
     protected function check(?string $key, &$value): void {}

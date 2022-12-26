@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance($cnkey, $length)
+ * @method static NumberChar getInstance($cnkey, $length)
  */
 class NumberChar extends \Swango\HttpServer\Validator {
     private $lenght;

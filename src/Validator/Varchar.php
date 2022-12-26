@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance(?string $cnkey, int $min_length = 0, int $max_length = 4096, bool $more_strict = false)
+ * @method static Varchar getInstance(?string $cnkey, int $min_length = 0, int $max_length = 4096, bool $more_strict = false)
  */
 class Varchar extends \Swango\HttpServer\Validator {
     private int $min_length, $max_length;

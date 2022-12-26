@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance()
+ * @method static Longitude getInstance()
  */
 class Longitude extends Double {
     public function __construct() {

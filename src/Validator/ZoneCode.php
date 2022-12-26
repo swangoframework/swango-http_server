@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance()
+ * @method static ZoneCode getInstance()
  */
 class ZoneCode extends Integer {
     public function __construct() {

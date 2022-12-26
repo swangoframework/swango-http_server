@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance(?string $key = null)
+ * @method static Phone getInstance(?string $key = null)
  */
 class Phone extends Integer {
     public function __construct(?string $key = null) {

@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance()
+ * @method static BankCard getInstance()
  */
 class BankCard extends Varchar {
     public function __construct() {

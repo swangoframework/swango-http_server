@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance()
+ * @method static COI getInstance()
  */
 class COI extends Varchar {
     public function __construct() {

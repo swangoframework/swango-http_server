@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance($cnkey, array $enum)
+ * @method static Enum getInstance($cnkey, array $enum)
  */
 class Enum extends \Swango\HttpServer\Validator {
     private array $enum;

@@ -1,7 +1,7 @@
 <?php
 namespace Swango\HttpServer\Validator;
 /**
- * @method static getInstance(string $cnkey, bool $not_futrue = true)
+ * @method static Date getInstance(string $cnkey, bool $not_futrue = true)
  */
 class Date extends Ob {
     private $not_futrue;
