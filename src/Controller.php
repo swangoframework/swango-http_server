@@ -229,7 +229,7 @@ abstract class Controller {
             ], [
                 '\\' . 'n',
                 '\\' . 'r'
-            ], json_encode($data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP));
+            ], json_encode($data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_INVALID_UTF8_IGNORE));
             $echo = sprintf('{"code":%d,"enmsg":%s,"cnmsg":%s,"data":%s}', $code, str_replace([
                 '\\n',
                 '\\r'
@@ -258,7 +258,7 @@ abstract class Controller {
                 'enmsg' => &$enmsg,
                 'cnmsg' => &$cnmsg,
                 'data' => &$data
-            ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP));
+            ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_INVALID_UTF8_IGNORE));
         }
         if (isset($this->encrypt_key)) {
             if (strlen($echo) < 256) {
